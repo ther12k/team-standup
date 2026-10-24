@@ -41,7 +41,20 @@ Database dan tabel dibuat otomatis saat pertama kali dijalankan. Pada kunjungan 
 
 **Akun demo pertama kali**: `admin` / `standup123` (koordinator; diminta mengganti sandi saat masuk — aksi admin terkunci sampai diganti).
 
-Produksi: `npm run build && npm start`.
+Produksi: `npm run build && npm start`, atau lewat Docker:
+
+```bash
+docker build -t team-standup .
+docker run -d --name standup-db -e POSTGRES_USER=standup \
+  -e POSTGRES_PASSWORD=rahasia -e POSTGRES_DB=hi_standup postgres:16-alpine
+docker run -d --name standup-app -p 3000:3000 --link standup-db \
+  -e DATABASE_URL=postgres://standup:rahasia@standup-db:5432/hi_standup \
+  team-standup
+```
+
+`deploy/Dockerfile.buildless` tersedia bila `npm ci` di dalam container tidak
+bisa dijalankan (bangun dulu di host dengan `npm run build`, lalu salin
+`.next/standalone` — lihat komentar berkas).
 
 ## Verifikasi
 
