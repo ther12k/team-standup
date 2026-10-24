@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link } from "@/components/link";
+import { useLocation } from "react-router-dom";
 import { useState, type ReactNode } from "react";
 import {
   AlertTriangle,
@@ -54,7 +54,7 @@ function Brand({ compact = false }: { compact?: boolean }) {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const pathname = usePathname();
+  const { pathname } = useLocation();
   const { state, hydrated, today, resetDemo, storageError, dismissStorageError } = useStore();
   const user = useUser();
   const { notify } = useToast();

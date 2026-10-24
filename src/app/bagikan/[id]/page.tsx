@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import { Globe2, LockKeyhole, Share2 } from "lucide-react";
 import { ActivitySections, ReportCard, TeamCard } from "@/components/reports/report-experience";
 import { FocusBrand } from "@/components/focus-brand";
@@ -21,15 +22,15 @@ type SharePayload = {
  * pernah dikirim server; anggota/tugas di luar rentang tidak ikut.
  */
 export default function SharedReportPage() {
+  const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+  const key = searchParams.get("k") ?? "";
   const [payload, setPayload] = useState<SharePayload | null>(null);
   const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    const url = new URL(window.location.href);
-    const id = url.pathname.split("/").filter(Boolean).pop() ?? "";
-    const key = url.searchParams.get("k") ?? "";
-    if (!key) {
+    if (!id || !key) {
       setError("Tautan ini tidak memuat kunci akses. Minta tautan lengkap dari pemilik laporan.");
       return;
     }
@@ -43,7 +44,7 @@ export default function SharedReportPage() {
       .then(setPayload)
       .catch(e => { if (!controller.signal.aborted) setError(e instanceof Error ? e.message : "Gagal membuka tautan."); });
     return () => controller.abort();
-  }, [attempt]);
+  }, [id, key, attempt]);
 
   const multiDay = payload ? payload.share.start !== payload.share.end : false;
   const report = payload ? buildReport(payload.state, payload.share.start, payload.share.end, payload.share.groupBy) : null;

@@ -1,6 +1,7 @@
 # dependensi & build
 node_modules/
 .next/
+dist/
 out/
 tsconfig.tsbuildinfo
 

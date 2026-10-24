@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Team Standup — standup harian tim tanpa grup chat berantakan</title>
-<meta name="description" content="Aplikasi web internal untuk standup harian tim: catatan rencana/selesai/kendala, tugas, impor laporan dari chat, sesi Live, dan tautan berbagi ber-kunci. Next.js + PostgreSQL, lisensi MIT.">
+<meta name="description" content="Aplikasi web internal untuk standup harian tim: catatan rencana/selesai/kendala, tugas, impor laporan dari chat, sesi Live, dan tautan berbagi ber-kunci. Vite + Elysia 2 + PostgreSQL, lisensi MIT.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230f6f5c' stroke-width='2.4'%3E%3Cpath d='M4 7.5h9M4 12h6' stroke-linecap='round'/%3E%3Cpath d='M13.5 16.5l2.3 2.3 4.7-5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
   :root { --brand:#0f6f5c; --brand-dark:#0b5646; --ink:#1c2b24; --soft:#5b6f63; --line:#e4e9e1; --cream:#f6f5f0; }
@@ -67,7 +67,7 @@
 
 <main>
   <div class="wrap hero">
-    <span class="eyebrow">Open source · MIT · Next.js + PostgreSQL</span>
+    <span class="eyebrow">Open source · MIT · Vite + React 19 + Elysia 2 + Bun</span>
     <h1>Standup harian tim, tanpa laporan berantar di grup chat</h1>
     <p class="sub">Catat <strong>Rencana / Selesai / Kendala</strong> per anggota, lacak tugas, impor laporan lampau dari ekspor chat, jalankan sesi Live, dan bagikan rekap lewat tautan ber-kunci — semuanya dalam satu aplikasi berbahasa Indonesia.</p>
     <div class="actions">
@@ -107,11 +107,11 @@
 
   <section class="how wrap" id="memulai">
     <h2>Jalankan sendiri dalam 5 menit</h2>
-    <p class="lead">Butuh Node.js 20+ dan PostgreSQL 14+. Tabel dan data contoh dibuat otomatis.</p>
+    <p class="lead">Butuh Bun 1.2+ dan PostgreSQL 14+. Tabel dan data contoh dibuat otomatis.</p>
     <div class="steps">
-      <div class="step"><h3>Unduh & pasang</h3><p><code>git clone https://github.com/ther12k/team-standup</code> lalu <code>npm install</code>.</p></div>
+      <div class="step"><h3>Unduh & pasang</h3><p><code>git clone https://github.com/ther12k/team-standup</code> lalu <code>bun install</code>.</p></div>
       <div class="step"><h3>Sambungkan database</h3><p>Isi <code>DATABASE_URL</code> di <code>.env.local</code> — lihat <code>.env.example</code>.</p></div>
-      <div class="step"><h3>Jalankan</h3><p><code>npm run dev</code>, buka <code>localhost:3000</code>, masuk dengan <code>admin / standup123</code>.</p></div>
+      <div class="step"><h3>Jalankan</h3><p><code>bun run dev</code> (port 3002) dan <code>bun run dev:server</code> (port 3003).</p></div>
       <div class="step"><h3>Ganti sandi</h3><p>Akun koordinator diminta mengganti sandi bawaan sebelum aksi admin dibuka.</p></div>
     </div>
   </section>

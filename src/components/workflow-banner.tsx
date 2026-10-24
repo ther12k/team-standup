@@ -1,5 +1,5 @@
-import Link from "next/link";
-import { ArrowRight, AudioLines, Maximize2, Radio } from "lucide-react";
+import { Link } from "@/components/link";
+import { ArrowRight, AudioLines, Maximize2 } from "lucide-react";
 
 export function WorkflowBanner() {
   return <section className="relative overflow-hidden rounded-2xl border border-[#2b6e53] bg-[#185740] p-5 text-white sm:p-6">

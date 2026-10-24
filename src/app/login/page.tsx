@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useNavigate } from "react-router-dom";
 import { AlertTriangle, Loader2, LogIn } from "lucide-react";
 import { Button, Field, Input } from "@/components/ui";
 
 export default function LoginPage() {
-  const router = useRouter();
+  const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -15,9 +15,9 @@ export default function LoginPage() {
   // Sudah punya sesi? Langsung ke aplikasi.
   useEffect(() => {
     fetch("/api/auth/me", { cache: "no-store" })
-      .then(response => (response.ok ? router.replace("/") : null))
+      .then(response => (response.ok ? navigate("/", { replace: true }) : null))
       .catch(() => null);
-  }, [router]);
+  }, [navigate]);
 
   const submit = async () => {
     if (busy) return;
@@ -34,8 +34,7 @@ export default function LoginPage() {
         setError(body?.error ?? "Gagal masuk. Coba lagi.");
         return;
       }
-      router.replace("/");
-      router.refresh();
+      navigate("/", { replace: true });
     } catch {
       setError("Server tidak dapat dihubungi. Periksa koneksi lalu coba lagi.");
     } finally {

@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/components/link";
 import { FileText, Maximize2 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { ReportExperience } from "@/components/reports/report-experience";

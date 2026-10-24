@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect -- Restores the optional browser-only demo identity preference after hydration. */
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/components/link";
 import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, Check, CheckCheck, ChevronRight, Clock3, Copy, FileCheck2, Info, Link2, Loader2, MessageCircle, Plus, Radio, Users, Wifi, WifiOff } from "lucide-react";
 import { useStore } from "@/lib/store";

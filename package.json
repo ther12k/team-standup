@@ -1,38 +1,46 @@
 {
   "name": "team-standup",
+  "type": "module",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
+    "dev": "vite",
+    "dev:server": "bun --watch src/server/index.ts",
+    "build": "vite build",
+    "start": "bun run src/server/index.ts",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test tests/*.test.ts"
   },
   "dependencies": {
+    "@elysiajs/cors": "^1.4.2",
+    "@elysiajs/eden": "^1.4.9",
+    "@elysiajs/static": "^1.4.10",
     "@playwright/test": "^1.64.1",
     "dotenv": "17.3.1",
     "drizzle-orm": "0.45.2",
+    "elysia": "^2.0.0-rc.0",
     "lucide-react": "^1.61.0",
-    "next": "16.2.6",
     "pg": "8.20.0",
     "react": "19.2.6",
     "react-dom": "19.2.6",
+    "react-router-dom": "^7.18.4",
     "tsx": "^4.23.15",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "4.1.17",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/bun": "^1.4.4",
     "@types/node": "22.19.15",
     "@types/pg": "8.18.0",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
+    "@types/react-router-dom": "^5.3.3",
+    "@vitejs/plugin-react": "^6.1.2",
     "drizzle-kit": "0.31.10",
     "eslint": "9.39.4",
-    "eslint-config-next": "16.2.6",
-    "postcss": "8.5.8",
     "tailwindcss": "4.1.17",
-    "typescript": "5.9.3"
+    "typescript": "5.9.3",
+    "vite": "^8.3.5"
   },
   "description": "Aplikasi web internal untuk standup harian tim: catatan rencana/selesai/kendala, tugas, impor laporan chat, sesi Live, dan tautan berbagi ber-kunci. Next.js + PostgreSQL."
 }

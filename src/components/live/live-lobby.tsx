@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { Link } from "@/components/link";
 import { ArrowRight, Check, CheckCheck, FileText, Headphones, MessagesSquare, Radio, Sparkles, Users } from "lucide-react";
 import { Avatar, Button, Field, Input } from "@/components/ui";
 import type { Member } from "@/lib/types";

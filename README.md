@@ -2,6 +2,8 @@
 
 Aplikasi web internal untuk standup harian tim — menggantikan laporan manual di grup chat. Catatan **Rencana / Selesai / Kendala** per anggota, pelacakan tugas, impor laporan lampau dari teks chat, rekap siap salin/ekspor, sesi **Standup Live**, laporan referensi divisi lain, dan **tautan berbagi ber-kunci** untuk pembaca tanpa akun. Antarmuka berbahasa Indonesia, zona waktu **Asia/Jakarta**.
 
+Dibangun dengan **Vite + React 19 + Tailwind v4 + React Router** di frontend, dan **Elysia 2 di atas Bun** di backend dengan PostgreSQL (Drizzle ORM). Ringan, mulai dalam hitungan milidetik, tanpa overhead SSR yang rumit.
+
 > Repo ini memakai **data contoh (dummy)** — nama anggota, isi laporan, dan laporan divisi semuanya fiktif. Hubungkan ke PostgreSQL kosong dan aplikasi mengisi dirinya sendiri dengan data contoh ini.
 
 ![Cuplikan laporan](docs/screenshot-laporan.png)
@@ -18,12 +20,13 @@ Aplikasi web internal untuk standup harian tim — menggantikan laporan manual d
 
 ## Menjalankan
 
-Butuh Node.js 20+ dan PostgreSQL 14+.
+Butuh **Bun 1.2+** dan **PostgreSQL 14+**.
 
 ```bash
-npm install
+bun install
 cp .env.example .env.local        # atau buat manual, lihat di bawah
-npm run dev                       # http://localhost:3000
+bun run dev                       # Vite client dev server (port 3002)
+bun run dev:server                # Elysia 2 backend dev server (port 3003)
 ```
 
 Isi `.env.local`:
@@ -41,36 +44,32 @@ Database dan tabel dibuat otomatis saat pertama kali dijalankan. Pada kunjungan 
 
 **Akun demo pertama kali**: `admin` / `standup123` (koordinator; diminta mengganti sandi saat masuk — aksi admin terkunci sampai diganti).
 
-Produksi: `npm run build && npm start`, atau lewat Docker:
+Produksi: `bun run build && bun run start`, atau lewat Docker:
 
 ```bash
 docker build -t team-standup .
-docker run -d --name standup-db -e POSTGRES_USER=standup \
-  -e POSTGRES_PASSWORD=rahasia -e POSTGRES_DB=hi_standup postgres:16-alpine
-docker run -d --name standup-app -p 3000:3000 --link standup-db \
+docker run -d --name standup-app -p 3000:3000 \
   -e DATABASE_URL=postgres://standup:rahasia@standup-db:5432/hi_standup \
   team-standup
 ```
 
-`deploy/Dockerfile.buildless` tersedia bila `npm ci` di dalam container tidak
-bisa dijalankan (bangun dulu di host dengan `npm run build`, lalu salin
-`.next/standalone` — lihat komentar berkas).
+Container Docker menyajikan API Elysia 2 dan file statis frontend hasil build Vite dalam satu proses mandiri yang ringan (< 90 MB).
 
 ## Verifikasi
 
 ```bash
-npm test          # pengujian unit (tsx --test)
-npm run typecheck
-npm run lint
+bun test          # pengujian unit (65 tes lewat)
+bun run typecheck
+bun run lint
 ```
 
 ## Struktur singkat
 
-- `src/app/(app)/` — halaman dalam gerbang login (standup, tugas, laporan, divisi, impor, pengguna, live).
-- `src/app/login`, `src/app/bagikan/[id]` — publik (masuk & tautan berbagi ber-kunci).
-- `src/app/api/` — workspace (sinkron revisi), auth, users, live rooms, shares.
+- `src/client/` — frontend SPA (React Router, AppShell, AppLayout, globals.css).
+- `src/app/` — komponen halaman (standup, tugas, laporan, divisi, impor, pengguna, live, login, bagikan).
+- `src/server/` — backend Elysia 2 (routes: auth, workspace, users, shares, live, health).
 - `src/lib/` — parser impor chat/arsip divisi, logika hari kerja & libur Indonesia, scrypt, sesi.
-- `src/db/` — skema Drizzle (workspace, live rooms, users, sessions, shares).
+- `src/db/` — skema Drizzle PostgreSQL.
 
 ## Lisensi
 

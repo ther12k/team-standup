@@ -1,5 +1,4 @@
 import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
-import { cookies } from "next/headers";
 import { and, eq, inArray, lt } from "drizzle-orm";
 import { db, pool } from "@/db";
 import { authSessions, users } from "@/db/schema";
@@ -103,10 +102,8 @@ export async function destroySession(token: string): Promise<void> {
 }
 
 /** Pengguna sesi cookie saat ini, atau null. Sesi kedaluwarsa/akun nonaktif = null. */
-export async function getSessionUser(): Promise<SessionUser | null> {
+export async function getSessionUser(token?: string): Promise<SessionUser | null> {
   await ensureAuthReady();
-  const jar = await cookies();
-  const token = jar.get(SESSION_COOKIE)?.value ?? "";
   if (!token) return null;
   const [row] = await db
     .select({ session: authSessions, user: users })
@@ -123,8 +120,8 @@ export async function getSessionUser(): Promise<SessionUser | null> {
   return toSessionUser(row.user);
 }
 
-export async function requireSessionUser(): Promise<SessionUser> {
-  const user = await getSessionUser();
+export async function requireSessionUser(token?: string): Promise<SessionUser> {
+  const user = await getSessionUser(token);
   if (!user) throw new AuthError("Sesi berakhir. Silakan masuk kembali.", 401);
   return user;
 }
@@ -139,8 +136,8 @@ export function assertAdminUser(user: SessionUser): void {
   }
 }
 
-export async function requireAdmin(): Promise<SessionUser> {
-  const user = await requireSessionUser();
+export async function requireAdmin(token?: string): Promise<SessionUser> {
+  const user = await requireSessionUser(token);
   assertAdminUser(user);
   return user;
 }
@@ -150,12 +147,12 @@ export async function requireAdmin(): Promise<SessionUser> {
  * WORKSPACE_ACCESS_TOKEN bila env itu diatur. Mengembalikan null berautentikasi
  * via token skrip (tanpa identitas pengguna).
  */
-export async function requireWorkspaceAccess(request: Request): Promise<SessionUser | null> {
-  const user = await getSessionUser();
+export async function requireWorkspaceAccess(token?: string, authHeader?: string): Promise<SessionUser | null> {
+  const user = await getSessionUser(token);
   if (user) return user;
   const expected = process.env.WORKSPACE_ACCESS_TOKEN;
   if (expected) {
-    const header = request.headers.get("authorization") ?? "";
+    const header = authHeader ?? "";
     const provided = header.startsWith("Bearer ") ? header.slice(7) : "";
     // Bandingkan digest supaya konstan-waktu seperti verifikasi kunci ruang Live.
     if (provided && timingSafeEqual(Buffer.from(sha256(provided)), Buffer.from(sha256(expected)))) return null;
@@ -215,24 +212,6 @@ export async function authenticate(username: string, password: string): Promise<
   const ok = await verifyPassword(password, hash);
   if (!row || !row.active || !ok) return null;
   return row;
-}
-
-/** Setel cookie sesi pada respons route handler (httpOnly; secure di belakang https). */
-export async function setSessionCookie(token: string, request: Request): Promise<void> {
-  const forwardedProto = request.headers.get("x-forwarded-proto") ?? "";
-  const jar = await cookies();
-  jar.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: SESSION_MAX_AGE_SECONDS,
-    secure: forwardedProto.split(",")[0].trim() === "https",
-  });
-}
-
-export async function clearSessionCookie(): Promise<void> {
-  const jar = await cookies();
-  jar.set(SESSION_COOKIE, "", { httpOnly: true, sameSite: "lax", path: "/", maxAge: 0 });
 }
 
 /** Cari akun berdasarkan id; dipakai API pembaruan akun. */

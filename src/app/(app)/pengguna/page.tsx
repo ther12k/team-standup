@@ -2,7 +2,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { AlertTriangle, Check, KeyRound, Loader2, Plus, ShieldCheck, UserCog } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useUser } from "@/components/user-context";
@@ -39,7 +38,6 @@ async function apiJson(url: string, init?: RequestInit): Promise<{ ok: boolean; 
 export default function PenggunaPage() {
   const me = useUser();
   const isAdmin = me?.role === "admin";
-  const router = useRouter();
   const { notify } = useToast();
   const { state } = useStore();
 
@@ -106,7 +104,7 @@ export default function PenggunaPage() {
     }
     setCurrentPassword(""); setNewPassword(""); setConfirmPassword("");
     notify("Profil tersimpan.");
-    router.refresh();
+    window.location.reload();
   };
 
   const openCreate = () => {
@@ -177,7 +175,7 @@ export default function PenggunaPage() {
     }
     setEditing(null);
     notify("Perubahan akun tersimpan.");
-    if (editing.id === me?.id) router.refresh();
+    if (editing.id === me?.id) window.location.reload();
     await loadUsers();
   };
 

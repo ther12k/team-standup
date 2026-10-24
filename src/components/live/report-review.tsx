@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/components/link";
 import { useState } from "react";
 import { AlertCircle, ArrowLeft, ArrowRight, Check, CheckCheck, ClipboardList, ExternalLink, FileText, Link2, LockKeyhole, Pencil, Plus, Send, Trash2 } from "lucide-react";
 import { Avatar, Button, CopyButton, cn, copyToClipboard, useToast } from "@/components/ui";

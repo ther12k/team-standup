@@ -1,11 +1,19 @@
-# Image produksi untuk Team Standup (Next.js standalone).
-# Dibangun dari output .next/standalone yang sudah dicompile (npm run build).
-FROM node:22-alpine
+# Multi-stage build untuk Team Standup menggunakan Bun + Elysia 2 + Vite
+FROM oven/bun:alpine AS build
 WORKDIR /app
-ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0
-RUN addgroup -S nodejs && adduser -S nextjs -G nodejs
-COPY .next/standalone ./
-COPY .next/static ./.next/static
-USER nextjs
+COPY package.json bun.lock* ./
+RUN bun install --frozen-lockfile
+COPY . .
+RUN bun run build
+
+FROM oven/bun:alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production PORT=3000
+COPY package.json bun.lock* ./
+RUN bun install --production --frozen-lockfile
+COPY tsconfig.json ./
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/src ./src
+COPY --from=build /app/drizzle.config.json ./
 EXPOSE 3000
-CMD ["node", "server.js"]
+CMD ["bun", "run", "src/server/index.ts"]

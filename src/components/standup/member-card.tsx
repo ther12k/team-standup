@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import { Link } from "@/components/link";
 import { ArrowRight, Check, ChevronRight, Link2, MapPin, Pencil, Plus } from "lucide-react";
 import type { ItemKind, Member, StandupEntry, StandupItem, Task } from "@/lib/types";
 import { Avatar, Button, Card, StatusBadge, cn } from "@/components/ui";
