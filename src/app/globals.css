@@ -1,0 +1,147 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700&display=swap");
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+    sans-serif;
+  --color-canvas: #f5f4ef;
+  --color-ink: #16211d;
+  --color-ink-soft: #5d6b64;
+  --color-line: #e4e2da;
+  --color-brand: #0f6f5c;
+  --color-brand-dark: #0b5346;
+  --color-brand-soft: #e6f2ee;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    background-image:
+      radial-gradient(1100px 520px at 8% -10%, rgba(15, 111, 92, 0.08), transparent 70%),
+      radial-gradient(900px 500px at 100% 0%, rgba(180, 145, 80, 0.08), transparent 65%);
+    background-repeat: no-repeat;
+  }
+
+  ::selection {
+    background: rgba(15, 111, 92, 0.16);
+  }
+
+  :focus-visible {
+    outline: 2px solid #0f6f5c;
+    outline-offset: 2px;
+  }
+
+  input[type="date"]::-webkit-calendar-picker-indicator {
+    opacity: 0.5;
+    cursor: pointer;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #d5d3ca;
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #bdbbb2;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+}
+
+@utility card {
+  background: #ffffff;
+  border: 1px solid var(--color-line);
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px rgba(18, 32, 27, 0.04);
+}
+
+@utility dot-grid {
+  background-image: radial-gradient(rgba(15, 111, 92, 0.16) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@utility animate-rise {
+  animation: rise 0.22s ease-out both;
+}
+
+@utility animate-fade {
+  animation: fade 0.18s ease-out both;
+}
+
+.focus-page { min-height: 100vh; background: #f7f8f5; }
+.focus-container { width: min(1160px, 100%); margin-inline: auto; padding-inline: 28px; }
+.focus-container-wide { width: 85%; margin-inline: auto; padding-inline: 28px; }
+.focus-brand { display: flex; align-items: center; gap: 10px; font-size: 16px; font-weight: 700; letter-spacing: -.5px; }
+.ticket-selector { padding: 12px 16px 14px; background: #fff; border: 1px solid #e5e9e2; border-radius: 16px; box-shadow: 0 3px 12px #14362a03; }
+.ticket-track { display: flex; gap: 8px; padding: 2px; overflow-x: auto; justify-content: center; }
+/* Kartu tanggal persegi (lebar = tinggi) ukuran tetap; bar menampilkan sebanyak yang muat. */
+.date-ticket { position: relative; display: flex; flex: 0 0 auto; flex-direction: column; align-items: center; justify-content: center; gap: 1px; width: 106px; aspect-ratio: 1 / 1; border-radius: 12px; background: #f7f9f5; border: 1px solid #e4e9e0; padding: 4px 2px; color: #65736b; overflow: hidden; cursor: pointer; transition: background .18s, transform .18s, box-shadow .18s; }
+.date-ticket:hover { background: #edf3e9; transform: translateY(-1px); }
+.date-ticket.is-selected { background: #17664f; color: #d3e7dd; border-color: #17664f; box-shadow: 0 4px 10px #17664f18; }
+.date-ticket.is-nonworking { opacity: .45; border-style: dashed; background: #f4f6f2; cursor: not-allowed; transform: none; }
+.ticket-day { display: flex; align-items: center; gap: 3px; font-size: 9.5px; font-weight: 500; }
+.ticket-date { font-size: 19px; line-height: 1.2; font-weight: 650; letter-spacing: -.5px; color: #223a2e; }
+.is-selected .ticket-date { color: white; }
+.ticket-today { padding: 1px 3px; border-radius: 3px; background: #17664f10; color: #17664f; font-size: 7.5px; font-weight: 600; }
+.is-selected .ticket-today { color: white; background: #ffffff25; }
+.ticket-caption { display: flex; align-items: center; justify-content: center; gap: 3px; margin-top: 1px; font-size: 8.5px; }
+.live-bubble { border-radius: 0 15px 15px 15px; background: #f4f6f2; border: 1px solid #e9ede5; }
+.live-bubble-own { background: #e9f3ed; border-color: #d7e7dd; }
+.live-grid { display: grid; grid-template-columns: minmax(0, 1fr) 355px; gap: 22px; align-items: start; }
+.wave-bar { display: inline-block; width: 3px; border-radius: 3px; background: currentColor; animation: sound-wave 1s ease-in-out infinite alternate; }
+.wave-bar:nth-child(2n) { animation-delay: .2s; } .wave-bar:nth-child(3n) { animation-delay: .4s; }
+@keyframes sound-wave { from { transform: scaleY(.3); } to { transform: scaleY(1); } }
+@media (max-width: 1023px) { .live-grid { grid-template-columns: minmax(0, 1fr) 315px; gap: 16px; } }
+@media (max-width: 767px) {
+  .focus-container { padding-inline: 16px; }
+  .focus-container-wide { width: 100%; padding-inline: 16px; }
+  .ticket-selector { padding: 10px 12px 12px; }
+  .ticket-track { justify-content: flex-start; gap: 6px; scroll-snap-type: x mandatory; }
+  .date-ticket { width: 72px; scroll-snap-align: center; }
+  .live-grid { grid-template-columns: 1fr; }
+}
+@media print {
+  .no-print { display: none !important; }
+  .focus-page { background: white; }
+  .focus-container, .focus-container-wide { width: 100%; padding: 0; }
+  article { break-inside: avoid; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise,
+  .animate-fade {
+    animation: none !important;
+  }
+}

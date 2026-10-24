@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Team Standup — standup harian tim tanpa grup chat berantakan</title>
+<meta name="description" content="Aplikasi web internal untuk standup harian tim: catatan rencana/selesai/kendala, tugas, impor laporan dari chat, sesi Live, dan tautan berbagi ber-kunci. Next.js + PostgreSQL, lisensi MIT.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230f6f5c' stroke-width='2.4'%3E%3Cpath d='M4 7.5h9M4 12h6' stroke-linecap='round'/%3E%3Cpath d='M13.5 16.5l2.3 2.3 4.7-5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+  :root { --brand:#0f6f5c; --brand-dark:#0b5646; --ink:#1c2b24; --soft:#5b6f63; --line:#e4e9e1; --cream:#f6f5f0; }
+  * { box-sizing:border-box; margin:0; }
+  body { font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; color:var(--ink); background:var(--cream); line-height:1.6; }
+  .wrap { max-width:1080px; margin:0 auto; padding:0 24px; }
+  header { border-bottom:1px solid var(--line); background:rgba(255,255,255,.85); backdrop-filter:blur(6px); position:sticky; top:0; z-index:5; }
+  .nav { display:flex; align-items:center; justify-content:space-between; height:60px; }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:700; letter-spacing:-.3px; }
+  .brand .logo { width:34px; height:34px; border-radius:10px; background:var(--brand); color:#fff; display:grid; place-items:center; }
+  .brand small { display:block; font-size:11px; font-weight:400; color:var(--soft); }
+  .nav a.cta { background:var(--brand); color:#fff; text-decoration:none; font-size:13px; font-weight:600; padding:9px 16px; border-radius:12px; }
+  .nav a.cta:hover { background:var(--brand-dark); }
+  .hero { padding:72px 0 40px; text-align:center; }
+  .eyebrow { display:inline-block; font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--brand); background:#e7f1ec; border:1px solid #cfe5dc; padding:4px 12px; border-radius:999px; }
+  h1 { font-size:clamp(30px,5vw,46px); letter-spacing:-1px; line-height:1.15; margin:18px auto 14px; max-width:760px; }
+  .sub { color:var(--soft); font-size:17px; max-width:620px; margin:0 auto 26px; }
+  .actions { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; margin-bottom:14px; }
+  .btn { display:inline-flex; align-items:center; gap:8px; padding:12px 22px; border-radius:14px; font-weight:600; font-size:14px; text-decoration:none; }
+  .btn.primary { background:var(--brand); color:#fff; box-shadow:0 6px 18px #0f6f5c26; }
+  .btn.primary:hover { background:var(--brand-dark); }
+  .btn.ghost { border:1px solid var(--line); background:#fff; color:var(--ink); }
+  .btn.ghost:hover { border-color:#c9d4cc; }
+  .stack { color:var(--soft); font-size:12.5px; }
+  .shots { display:grid; gap:18px; padding:26px 0 8px; }
+  .shot { background:#fff; border:1px solid var(--line); border-radius:18px; padding:12px; box-shadow:0 18px 50px #14362a12; }
+  .shot img { width:100%; border-radius:10px; display:block; }
+  .shot figcaption { font-size:12.5px; color:var(--soft); padding:10px 6px 2px; }
+  section.features { padding:56px 0 30px; }
+  h2 { font-size:26px; letter-spacing:-.5px; margin-bottom:6px; }
+  .lead { color:var(--soft); margin-bottom:30px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; }
+  .card { background:#fff; border:1px solid var(--line); border-radius:16px; padding:20px; }
+  .card .ic { width:38px; height:38px; border-radius:11px; background:#e7f1ec; color:var(--brand); display:grid; place-items:center; margin-bottom:12px; font-size:18px; }
+  .card h3 { font-size:15.5px; margin-bottom:6px; }
+  .card p { font-size:13.5px; color:var(--soft); }
+  section.how { padding:40px 0 60px; }
+  .steps { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; counter-reset:step; }
+  .step { background:#fff; border:1px solid var(--line); border-radius:16px; padding:18px; position:relative; }
+  .step::before { counter-increment:step; content:counter(step); position:absolute; top:-12px; left:16px; background:var(--brand); color:#fff; font-size:12px; font-weight:700; width:26px; height:26px; border-radius:8px; display:grid; place-items:center; }
+  .step h3 { font-size:14.5px; margin:6px 0 4px; }
+  .step p { font-size:13px; color:var(--soft); }
+  code { background:#eef2ec; border:1px solid var(--line); padding:1px 6px; border-radius:6px; font-size:12.5px; }
+  footer { border-top:1px solid var(--line); padding:26px 0 40px; color:var(--soft); font-size:13px; display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  footer a { color:var(--brand-dark); }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap nav">
+    <div class="brand">
+      <span class="logo">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7.5h9M4 12h6" stroke-linecap="round"/><path d="M13.5 16.5l2.3 2.3 4.7-5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>
+      <span>teamstandup<small>standup harian untuk tim kecil</small></span>
+    </div>
+    <a class="cta" href="https://github.com/ther12k/team-standup">Kode di GitHub</a>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <span class="eyebrow">Open source · MIT · Next.js + PostgreSQL</span>
+    <h1>Standup harian tim, tanpa laporan berantar di grup chat</h1>
+    <p class="sub">Catat <strong>Rencana / Selesai / Kendala</strong> per anggota, lacak tugas, impor laporan lampau dari ekspor chat, jalankan sesi Live, dan bagikan rekap lewat tautan ber-kunci — semuanya dalam satu aplikasi berbahasa Indonesia.</p>
+    <div class="actions">
+      <a class="btn primary" href="https://github.com/ther12k/team-standup">⭐ Lihat repositori</a>
+      <a class="btn ghost" href="#memulai">Coba sendiri (5 menit)</a>
+    </div>
+    <p class="stack">Tanpa layanan berbayar · tanpa API key · data tetap di PostgreSQL-mu</p>
+    <figure class="shot">
+      <img src="./screenshot-laporan.png" alt="Halaman laporan harian: kartu per tim dengan rencana, selesai, dan kendala anggota, chip divisi lain, serta baris tanggal">
+      <figcaption>Rekap harian — satu kartu per tim, waktu pelaporan asli, dan chip laporan divisi lain sebagai referensi.</figcaption>
+    </figure>
+  </div>
+
+  <section class="features wrap">
+    <h2>Semua yang tim kecil butuh untuk rutinitas standup</h2>
+    <p class="lead">Dibangun dari kebiasaan nyata tim operasional — bukan teori.</p>
+    <div class="grid">
+      <div class="card"><div class="ic">📋</div><h3>Standup sadar kalender</h3><p>Sabtu–Minggu dan hari libur nasional Indonesia otomatis non-aktif; anggota resign tetap terbaca di riwayat tanpa dihitung "belum mengisi".</p></div>
+      <div class="card"><div class="ic">📥</div><h3>Impor dari chat</h3><p>Tempel ekspor grup chat; parser mengenali format laporan <code>👷 Nama</code>, membandingkan tanggal judul dengan stempel waktu pesan, dan menandai yang perlu dicek.</p></div>
+      <div class="card"><div class="ic">🎙️</div><h3>Standup Live</h3><p>Sesi obrolan terpandu koordinator: pilih pesan → rapikan jadi aktivitas → terbitkan; hasilnya langsung masuk riwayat standup dengan tautan baca-saja.</p></div>
+      <div class="card"><div class="ic">🔗</div><h3>Bagikan ber-kunci</h3><p>Satu klik membuat tautan <code>/bagikan/…?k=…</code> untuk manajer atau divisi lain tanpa akun — hanya rentang yang dibagikan yang terlihat, hangus 180 hari.</p></div>
+      <div class="card"><div class="ic">🏢</div><h3>Divisi lain</h3><p>Laporan harian divisi lain dijadikan referensi — ekstraktor arsip chat disertakan, plus menu khusus untuk menelusurinya.</p></div>
+      <div class="card"><div class="ic">🔐</div><h3>Login & pengguna</h3><p>Akun internal (sesi cookie httpOnly, sandi scrypt), peran koordinator/anggota, dan manajemen pengguna — bukan sekadar demo terbuka.</p></div>
+    </div>
+  </section>
+
+  <div class="wrap shots">
+    <figure class="shot">
+      <img src="./screenshot-standup.png" alt="Halaman standup harian dengan pilih tanggal dan kartu anggota">
+      <figcaption>Halaman utama — kartu per anggota, bawa tugas ke rencana, dan salin pengingat untuk yang belum mengisi.</figcaption>
+    </figure>
+    <figure class="shot">
+      <img src="./screenshot-divisi.png" alt="Daftar laporan divisi lain dengan filter divisi">
+      <figcaption>Menu Divisi Lain — telusuri dan saring laporan referensi dari divisi tetangga.</figcaption>
+    </figure>
+  </div>
+
+  <section class="how wrap" id="memulai">
+    <h2>Jalankan sendiri dalam 5 menit</h2>
+    <p class="lead">Butuh Node.js 20+ dan PostgreSQL 14+. Tabel dan data contoh dibuat otomatis.</p>
+    <div class="steps">
+      <div class="step"><h3>Unduh & pasang</h3><p><code>git clone https://github.com/ther12k/team-standup</code> lalu <code>npm install</code>.</p></div>
+      <div class="step"><h3>Sambungkan database</h3><p>Isi <code>DATABASE_URL</code> di <code>.env.local</code> — lihat <code>.env.example</code>.</p></div>
+      <div class="step"><h3>Jalankan</h3><p><code>npm run dev</code>, buka <code>localhost:3000</code>, masuk dengan <code>admin / standup123</code>.</p></div>
+      <div class="step"><h3>Ganti sandi</h3><p>Akun koordinator diminta mengganti sandi bawaan sebelum aksi admin dibuka.</p></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap" style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;width:100%">
+    <span>Dibuat untuk tim operasional nyata — dirilis ulang dengan data contoh. Lisensi MIT.</span>
+    <span><a href="https://github.com/ther12k/team-standup">GitHub</a> · <a href="https://github.com/ther12k/team-standup#readme">Dokumentasi</a></span>
+  </div>
+</footer>
+</body>
+</html>

@@ -1,0 +1,22 @@
+# dependensi & build
+node_modules/
+.next/
+out/
+tsconfig.tsbuildinfo
+
+# lingkungan lokal — JANGAN commit kredensial
+.env
+.env.local
+.env.*.local
+
+# artefak uji & alat
+.playwright-cli/
+coverage/
+*.log
+
+# sistem
+.DS_Store
+Thumbs.db
+
+# ruang kerja ZCode lokal
+.zcode/
