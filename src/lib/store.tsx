@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/set-state-in-effect -- sinkronisasi awal dengan localStorage / data tanggal Asia/Jakarta setelah mount. */
 "use client";
 
 import {
@@ -18,9 +17,6 @@ import { applyImport, type ImportDecision, type ImportSummary } from "@/lib/impo
 import { normalizeForCompare } from "@/lib/tasks";
 import { applyLiveReport, type LiveSession } from "@/lib/live";
 
-const STORAGE_KEY = "team-standup-demo-v1";
-const BACKUP_KEY = "team-standup-demo-v1-backup";
-const REVISION_KEY = "team-standup-demo-server-revision";
 const WORKSPACE_TOKEN_KEY = "team-standup-wst";
 const ACCENTS: Accent[] = ["teal", "sky", "violet", "amber", "rose", "emerald", "indigo", "orange"];
 
@@ -123,15 +119,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const pendingPushRef = useRef(false);
   const syncTimerRef = useRef<number | null>(null);
 
-  const persistCache = useCallback((next: AppState, revision: number) => {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      window.localStorage.setItem(REVISION_KEY, String(revision));
-    } catch {
-      /* salinan lokal bersifat best-effort; server tetap sumber utama */
-    }
-  }, []);
-
   const adoptServerState = useCallback((next: AppState, revision: number) => {
     // Data lama mungkin belum punya daftar libur — materialkan tanpa menandai kotor.
     const withHolidays: AppState = next.holidays?.length ? next : { ...next, holidays: [...DEFAULT_HOLIDAYS] };
@@ -139,8 +126,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     dirtyRef.current = false;
     stateRef.current = withHolidays;
     setState(withHolidays);
-    persistCache(withHolidays, revision);
-  }, [persistCache]);
+  }, []);
 
   const doPushRef = useRef<() => void>(() => {});
   const doPush = useCallback(() => {
@@ -164,7 +150,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .then(async (response) => {
         inFlightRef.current = false;
         if (response.status === 401) {
-          // Sesi login habis — kembali ke halaman masuk (data lokal tetap aman di cache).
           window.location.assign("/login");
           return;
         }
@@ -186,7 +171,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         const body = await response.json();
         if (!response.ok) throw new Error(body?.error ?? "gagal menyimpan");
         serverRevisionRef.current = body.revision;
-        persistCache(current, body.revision);
         if (pendingPushRef.current) {
           pendingPushRef.current = false;
           doPushRef.current();
@@ -195,9 +179,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .catch(() => {
         inFlightRef.current = false;
         pendingPushRef.current = true;
-        setStorageError("Perubahan tersimpan di peramban ini, tetapi gagal sinkron ke server. Akan dicoba lagi otomatis.");
+        setStorageError("Perubahan belum tersimpan ke server. Akan dicoba lagi otomatis.");
       });
-  }, [adoptServerState, persistCache]);
+  }, [adoptServerState]);
   useEffect(() => { doPushRef.current = doPush; }, [doPush]);
 
   const pushToServer = useCallback(() => {
@@ -223,30 +207,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}${hash.toString() ? `#${hash}` : ""}`);
       }
     } catch { /* tanpa penyimpanan: token tetap dipakai dari URL selama sesi ini */ }
-    const setLocal = (next: AppState) => {
-      const withHolidays: AppState = next.holidays?.length ? next : { ...next, holidays: [...DEFAULT_HOLIDAYS] };
-      stateRef.current = withHolidays;
-      setState(withHolidays);
-    };
-    let localState: AppState = EMPTY_STATE;
-    let localRevision = 0;
+
+    // Bersihkan sisa cache localStorage lama dari browser pengguna agar tidak ada data basi
     try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed: unknown = JSON.parse(raw);
-        if (isAppState(parsed)) localState = parsed;
-      }
-      localRevision = Number(window.localStorage.getItem(REVISION_KEY)) || 0;
-      serverRevisionRef.current = localRevision;
-      setLocal(localState);
-    } catch {
-      setStorageError("Penyimpanan lokal tidak dapat diakses. Perubahan tetap tersinkron ke server bila terjangkau.");
-      setLocal(EMPTY_STATE);
-    }
+      window.localStorage.removeItem("team-standup-demo-v1");
+      window.localStorage.removeItem("team-standup-demo-server-revision");
+      window.localStorage.removeItem("team-standup-demo-v1-backup");
+    } catch { /* abaikan */ }
+
     // Coba ulang sinkronisasi tertunda saat kembali daring.
     const onOnline = () => { if (pendingPushRef.current) doPush(); };
     window.addEventListener("online", onOnline);
-    // Workspace server adalah sumber kebenaran lintas perangkat; riwayat dasar hanya ada di server.
+
+    // Workspace server adalah satu-satunya sumber kebenaran (PostgreSQL).
     fetch("/api/workspace", { cache: "no-store", headers: workspaceHeaders() })
       .then((response) => {
         if (response.status === 401) {
@@ -258,46 +231,23 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       .then((body) => {
         serverReadyRef.current = true;
         if (!body || typeof body !== "object" || !isAppState(body.state)) return;
-        const serverState = JSON.stringify(body.state);
-        const localDiffers = serverState !== JSON.stringify(stateRef.current);
-        const unsyncedLocal = dirtyRef.current || (localDiffers && body.revision === localRevision && localRevision > 0);
-        if (unsyncedLocal && localDiffers) {
-          // Peramban ini punya edit yang belum tersinkron — baik dibuat sesi ini maupun
-          // saat luring (revisi server sama dengan catatan sinkron terakhir). Pertahankan
-          // dan dorong dengan revisi server saat ini sebagai dasar.
-          serverRevisionRef.current = body.revision;
-          dirtyRef.current = true;
-          doPush();
-          return;
-        }
         adoptServerState(body.state, body.revision);
       })
       .catch(() => {
         serverReadyRef.current = true;
-        if (!localState.members.length && !localState.entries.length) {
-          setStorageError("Server workspace tidak terjangkau dan belum ada data lokal. Periksa koneksi lalu muat ulang.");
-        }
+        setStorageError("Server workspace tidak terjangkau. Periksa koneksi lalu muat ulang.");
       });
     return () => window.removeEventListener("online", onOnline);
   }, [adoptServerState, doPush]);
-
-  const persist = useCallback((next: AppState) => {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-    } catch {
-      setStorageError("Gagal menyimpan ke penyimpanan lokal (kuota penuh?). Data mungkin hilang setelah muat ulang.");
-    }
-  }, []);
 
   const applyState = useCallback(
     (next: AppState) => {
       dirtyRef.current = true;
       stateRef.current = next;
       setState(next);
-      persist(next);
       pushToServer();
     },
-    [persist, pushToServer],
+    [pushToServer],
   );
 
   const update = useCallback(
@@ -484,10 +434,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   }, [applyState]);
 
   const resetDemo = useCallback(() => {
-    const current = stateRef.current;
-    if (current) {
-      try { window.localStorage.setItem(BACKUP_KEY, JSON.stringify(current)); } catch { /* abaikan */ }
-    }
     setToday(todayInJakarta());
     // Data contoh hanya ada di server — pulihkan lewat endpoint reset agar
     // teks percakapan tim tidak pernah dibundel ke berkas klien yang publik.

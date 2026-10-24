@@ -145,7 +145,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="flex items-center gap-2 rounded-xl border border-dashed border-line px-2.5 py-2 text-[11px] leading-snug text-ink-soft">
             <CloudOff className="h-3.5 w-3.5 shrink-0" />
             <span>
-              Data tim · tersinkron ke server (PostgreSQL); peramban menyimpan salinan lokal. Ruang Live tersimpan terpisah.
+              Data tim tersinkron langsung ke database PostgreSQL server. Ruang Live tersimpan terpisah.
             </span>
           </div>
           <div className="flex items-center gap-2.5 rounded-xl bg-white px-2.5 py-2 ring-1 ring-line">
@@ -204,9 +204,8 @@ export function AppShell({ children }: { children: ReactNode }) {
             <div className="mb-4 flex items-start gap-2 rounded-xl border border-amber-200/70 bg-amber-50/70 px-3 py-2 text-[11px] leading-snug text-amber-900 sm:text-xs">
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
               <p className="flex-1">
-                <span className="font-semibold">Workspace tim.</span> Data tersinkron ke server (PostgreSQL) lintas
-                perangkat; peramban menyimpan salinan lokal untuk mode luring. Tanggal &amp; waktu memakai zona
-                Asia/Jakarta.
+                <span className="font-semibold">Workspace tim.</span> Data tersinkron langsung ke database PostgreSQL
+                server. Tanggal &amp; waktu memakai zona Asia/Jakarta.
               </p>
               <button
                 type="button"
@@ -275,7 +274,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         open={resetOpen}
         onClose={() => setResetOpen(false)}
         title="Muat ulang data contoh?"
-        description={`Data lokal saat ini akan diganti dengan data contoh bawaan. Data lama disalin ke cadangan peramban.`}
+        description="Data saat ini akan diganti dengan data contoh bawaan."
         size="sm"
         footer={
           <>
@@ -294,8 +293,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       >
         <p className="text-sm leading-relaxed text-ink-soft">
           Gunakan tombol ini untuk kembali ke data contoh bawaan aplikasi. Perubahan yang kamu buat setelah
-          impor (catatan manual, tugas baru) akan ditimpa — salinan data lama tetap tersimpan di penyimpanan lokal
-          peramban.
+          impor (catatan manual, tugas baru) akan ditimpa.
         </p>
       </Modal>
     </div>
