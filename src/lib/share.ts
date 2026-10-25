@@ -1,9 +1,30 @@
 import { z } from "zod";
-import { isValidISODate } from "@/lib/date";
+import { addDays, isValidISODate } from "@/lib/date";
 import type { AppState } from "@/lib/types";
 
 /** Berbagi laporan: maksimal 62 hari per tautan agar payload tetap terkendali. */
 export const SHARE_MAX_DAYS = 62;
+
+/**
+ * Navigasi mundur pembaca tautan: harian boleh membuka 10 hari sebelum tanggal
+ * yang dibagikan; mingguan hanya minggu sebelumnya. Data yang dikirim server
+ * dibatasi ke jendela ini — sisanya tetap privat.
+ */
+export const SHARE_DAY_LOOKBACK = 10;
+export const SHARE_WEEK_LOOKBACK_WEEKS = 1;
+
+export type ShareMode = "day" | "week";
+
+/** Tautan satu hari = harian; rentang (minggu Sen–Min) = mingguan. */
+export function shareModeFor(start: string, end: string): ShareMode {
+  return start === end ? "day" : "week";
+}
+
+/** Tanggal terlama yang boleh dilihat pembaca tautan. */
+export function shareWindowStart(start: string, end: string): string {
+  const back = shareModeFor(start, end) === "day" ? -SHARE_DAY_LOOKBACK : -7 * SHARE_WEEK_LOOKBACK_WEEKS;
+  return addDays(start, back);
+}
 
 /** Panjang ID tautan berbagi: 8 karakter alfanumerik (62^8 ≈ 218 triliun kombinasi). */
 export const SHARE_ID_LENGTH = 8;
