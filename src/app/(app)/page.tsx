@@ -65,6 +65,7 @@ import {
   prevWorkingDay,
 } from "@/lib/workdays";
 import { formatStandupForWhatsApp } from "@/lib/whatsapp";
+import { ABSENCE_LABEL, detectAbsence, entryAbsence, type AbsenceKind } from "@/lib/absence";
 import type { StandupEntry, StandupItem } from "@/lib/types";
 import type { EntryDraft } from "@/lib/store";
 
@@ -103,12 +104,31 @@ export default function StandupPage() {
       plans: entries.reduce((total, entry) => total + entry.plans.length, 0),
       done: entries.reduce((total, entry) => total + entry.done.length, 0),
       blockers: entries.reduce((total, entry) => total + entry.blockers.length, 0),
-      // Angka "mengisi" hanya menghitung anggota aktif — non-aktif tidak menaikkan pembilang.
-      filled: entries.filter((entry) => state.members.find((m) => m.id === entry.memberId)?.active !== false).length,
+      // Angka "mengisi" hanya menghitung anggota aktif yang bekerja — non-aktif
+      // dan yang menulis cuti/sakit/izin tidak menaikkan pembilang.
+      filled: entries.filter((entry) =>
+        state.members.find((m) => m.id === entry.memberId)?.active !== false && !entryAbsence(entry),
+      ).length,
     };
   }, [entryByMember, state.members]);
 
-  const missing = useMemo(() => membersWithoutEntry(state, date), [state, date]);
+  const absentees = useMemo(() => {
+    const list: { memberId: string; kind: AbsenceKind; note: string }[] = [];
+    entryByMember.forEach((entry, memberId) => {
+      const kind = entryAbsence(entry);
+      if (kind) {
+        const note = [...entry.plans, ...entry.done, ...entry.blockers].map((item) => item.text).find((text) => detectAbsence([text]) !== null) ?? "";
+        list.push({ memberId, kind, note });
+      }
+    });
+    return list;
+  }, [entryByMember]);
+  const absentMemberIds = useMemo(() => new Set(absentees.map((a) => a.memberId)), [absentees]);
+
+  const missing = useMemo(
+    () => membersWithoutEntry(state, date).filter((member) => !absentMemberIds.has(member.id)),
+    [state, date, absentMemberIds],
+  );
   const candidates = useMemo(() => carryCandidates(state, date), [state, date]);
   const quickCandidates = useMemo(() => candidates.filter((candidate) => !candidate.alreadyPlanned).slice(0, 4), [candidates]);
   const weekDates = useMemo(() => (isValidISODate(date) ? eachDate(startOfWeek(date), endOfWeek(date)) : []), [date]);
@@ -267,6 +287,11 @@ export default function StandupPage() {
             <Pill className="border-teal-200 bg-brand-soft text-brand-dark">
               <Users className="h-3 w-3" /> {totals.filled}/{activeMembers.length} mengisi
             </Pill>
+            {absentees.length > 0 ? (
+              <Pill className="border-orange-200 bg-orange-50 text-orange-700">
+                {absentees.length} cuti/sakit/izin
+              </Pill>
+            ) : null}
             {missing.length > 0 ? (
               <Pill className="border-amber-200 bg-amber-50 text-amber-800">{missing.length} belum mengisi</Pill>
             ) : (
@@ -280,6 +305,8 @@ export default function StandupPage() {
         <div className="mt-2.5 grid grid-cols-7 gap-1">
           {weekDates.map((day) => {
             const dayEntries = state.entries.filter((entry) => entry.date === day && !isEntryEmpty(entry));
+            // Titik hijau hanya menyala bila ada peserta yang bekerja (bukan sekadar keterangan cuti).
+            const workingCount = dayEntries.filter((entry) => !entryAbsence(entry)).length;
             const isSelected = day === date;
             const isToday = day === today;
             const selectable = daySelectable(day);
@@ -295,7 +322,7 @@ export default function StandupPage() {
                 }}
                 aria-pressed={isSelected}
                 aria-disabled={!selectable}
-                aria-label={`${formatLongDate(day)}${dayEntries.length ? `, ${dayEntries.length} catatan` : ", belum ada catatan"}${!selectable ? ` — ${reason}` : ""}`}
+                aria-label={`${formatLongDate(day)}${workingCount ? `, ${workingCount} anggota bekerja` : dayEntries.length ? ", hanya keterangan cuti/izin" : ", belum ada catatan"}${!selectable ? ` — ${reason}` : ""}`}
                 title={!selectable ? `Bukan hari kerja: ${reason}${dayEntries.length ? " (ada catatan lama)" : ""}` : undefined}
                 className={cn(
                   "relative flex flex-col items-center gap-0.5 rounded-lg border px-1 py-1.5 transition-colors",
@@ -316,7 +343,7 @@ export default function StandupPage() {
                 <span
                   className={cn(
                     "h-1 w-1 rounded-full",
-                    isSelected ? "bg-white/80" : dayEntries.length > 0 ? "bg-brand" : "bg-slate-200",
+                    isSelected ? "bg-white/80" : workingCount > 0 ? "bg-brand" : dayEntries.length > 0 ? "bg-orange-400" : "bg-slate-200",
                   )}
                   aria-hidden
                 />
@@ -359,7 +386,9 @@ export default function StandupPage() {
           </div>
 
           <div className="grid gap-2.5 sm:grid-cols-2">
-            {gridMembers.map((member) => (
+            {gridMembers.map((member) => {
+              const absence = absentees.find((a) => a.memberId === member.id);
+              return (
               <div key={member.id} className={cn(editingMemberId === member.id && "sm:col-span-2")}>
                 <MemberEntryCard
                   member={member}
@@ -369,13 +398,15 @@ export default function StandupPage() {
                   projects={projects}
                   editing={editingMemberId === member.id}
                   inactive={member.active === false}
+                  absence={absence ? { label: ABSENCE_LABEL[absence.kind], note: absence.note } : undefined}
                   onEdit={() => setEditingMemberId(member.id)}
                   onCancel={() => setEditingMemberId(null)}
                   onSave={handleSave}
                   onMoveToDone={(item) => moveToDone(member.id, item)}
                 />
               </div>
-            ))}
+              );
+            })}
           </div>
 
           <Card className="flex flex-wrap items-center justify-between gap-2 bg-[#fbfaf6] p-3">

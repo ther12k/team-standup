@@ -8,6 +8,7 @@ import { WeekTickets } from "@/components/reports/week-tickets";
 import { DivisionChip, DivisionReportModal, latestPerDivisionInRange } from "@/components/divisions/report-modal";
 import { Avatar, Button, CopyButton, EmptyState, Modal, PageLoading, StatusBadge, cn } from "@/components/ui";
 import { buildReport, reportToCsv, type ReportGroup, type ReportGroupBy, type ReportLine } from "@/lib/report";
+import { ABSENCE_LABEL, entryAbsence } from "@/lib/absence";
 import { endOfWeek, formatClock, formatMediumDate, formatShortDate, isValidISODate, startOfWeek } from "@/lib/date";
 import { latestWorkingDayOnOrBefore } from "@/lib/workdays";
 import { formatReportForWhatsApp } from "@/lib/whatsapp";
@@ -47,11 +48,20 @@ export function ReportCard({ group, data, groupBy, snapshot, showDate }: { group
   const member = data.members.find(m => m.id === group.key);
   const dates = data.entries.filter(e => group.lines.some(l => l.entryId === e.id)).map(e => e.updatedAt).sort();
   const hasLive = data.entries.some(e => group.lines.some(l => l.entryId === e.id) && e.source === "live");
+  const absenceKind = (() => {
+    for (const e of data.entries) {
+      if (group.lines.some(l => l.entryId === e.id)) {
+        const kind = entryAbsence(e);
+        if (kind) return kind;
+      }
+    }
+    return null;
+  })();
   return <article className="rounded-2xl border border-[#e4e9e1] bg-white p-4 shadow-[0_2px_4px_#19372a03] sm:p-5">
     <div className="mb-3 flex items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-3">
         {groupBy === "member" ? <Avatar name={group.title} accent={member?.accent ?? "teal"} /> : <span className="grid size-10 place-items-center rounded-xl bg-brand-soft text-brand"><MapPin size={19} /></span>}
-        <div className="min-w-0"><h3 className="flex flex-wrap items-center gap-1.5 text-[14px] font-semibold text-ink">{group.title}{groupBy === "member" && member?.active === false && <span className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide text-slate-500">Non-aktif</span>}</h3><p className="mt-0.5 text-[11px] text-ink-soft">{group.subtitle || `${new Set(group.lines.map(l => l.memberId)).size} anggota`}</p></div>
+        <div className="min-w-0"><h3 className="flex flex-wrap items-center gap-1.5 text-[14px] font-semibold text-ink">{group.title}{groupBy === "member" && member?.active === false && <span className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide text-slate-500">Non-aktif</span>}{absenceKind && <span className="rounded border border-orange-300 bg-orange-50 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide text-orange-700">{ABSENCE_LABEL[absenceKind]}</span>}</h3><p className="mt-0.5 text-[11px] text-ink-soft">{group.subtitle || `${new Set(group.lines.map(l => l.memberId)).size} anggota`}</p></div>
       </div>
       <span className="flex shrink-0 items-center gap-1 text-[10px] text-ink-soft/70"><CheckCheck size={13} /> {hasLive ? "Dari Live" : `${formatClock(dates.at(-1))} WIB`}</span>
     </div>
@@ -87,12 +97,22 @@ export function TeamCard({ title, memberCards, data, snapshot, showDate }: {
           .map(e => e.updatedAt)
           .sort()
           .at(-1);
+        const absenceKind = (() => {
+          for (const e of data.entries) {
+            if (group.lines.some(l => l.entryId === e.id)) {
+              const kind = entryAbsence(e);
+              if (kind) return kind;
+            }
+          }
+          return null;
+        })();
         return (
           <div key={group.key} className="py-2.5 first:pt-2 last:pb-0">
             <div className="mb-1 flex items-center gap-2">
               <Avatar name={group.title} accent={member?.accent ?? "teal"} size="xs" />
               <p className="truncate text-[12px] font-semibold text-ink">{group.title}</p>
               {member?.active === false && <span className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide text-slate-500">Non-aktif</span>}
+              {absenceKind && <span className="rounded border border-orange-300 bg-orange-50 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide text-orange-700">{ABSENCE_LABEL[absenceKind]}</span>}
               <span className="ml-auto shrink-0 text-[9.5px] text-ink-soft/70">{formatClock(lastUpdated)} WIB</span>
             </div>
             <ActivitySections lines={group.lines} groupBy="member" snapshot={snapshot} showDate={showDate} />
@@ -163,11 +183,30 @@ export function ReportExperience({
     () => (data && range ? buildReport(data, range.start, range.end, groupBy) : null),
     [data, range, groupBy],
   );
+  // Kotak tanggal hanya menghitung peserta yang bekerja — anggota dengan keterangan
+  // cuti/sakit/izin tidak menaikkan angka, tetapi harinya tetap bisa dibuka.
   const counts = useMemo(() => {
     const result: Record<string, number> = {};
-    data?.entries.forEach(e => { if (e.plans.length + e.done.length + e.blockers.length) result[e.date] = (result[e.date] ?? 0) + 1; });
+    data?.entries.forEach(e => {
+      if (e.plans.length + e.done.length + e.blockers.length && !entryAbsence(e)) result[e.date] = (result[e.date] ?? 0) + 1;
+    });
     return result;
   }, [data]);
+  const hasData = useMemo(() => {
+    const result: Record<string, boolean> = {};
+    data?.entries.forEach(e => { if (e.plans.length + e.done.length + e.blockers.length) result[e.date] = true; });
+    return result;
+  }, [data]);
+  // Anggota dengan keterangan cuti/sakit/izin pada rentang aktif — ditampilkan
+  // dengan penanda oranye, tidak dihitung sebagai "mengisi".
+  const absentMemberIds = useMemo(() => {
+    const set = new Set<string>();
+    if (!range) return set;
+    data?.entries.forEach(e => {
+      if (e.date >= range.start && e.date <= range.end && entryAbsence(e)) set.add(e.memberId);
+    });
+    return set;
+  }, [data, range]);
 
   const selectDate = (value: string) => {
     setDate(value);
@@ -212,7 +251,7 @@ export function ReportExperience({
 
   const groups = report.groups.filter(g => `${g.title} ${g.lines.map(l => `${l.memberName} ${l.text}`).join(" ")}`.toLowerCase().includes(search.toLowerCase()));
   return <>
-    <WeekTickets date={date} today={today} onChange={selectDate} counts={counts} holidays={state.holidays ?? []} mode={mode} onModeChange={setMode} />
+    <WeekTickets date={date} today={today} onChange={selectDate} counts={counts} hasData={hasData} holidays={state.holidays ?? []} mode={mode} onModeChange={setMode} />
     <div className="mt-3 mb-3 flex flex-wrap items-center justify-end gap-2.5">
       <div className="flex gap-1 rounded-lg bg-[#eaf0e7] p-1" role="group" aria-label="Kelompok laporan">
         {([['member', 'Per anggota'], ['project', 'Per proyek']] as const).map(([value, label]) => <button key={value} onClick={() => setGroupBy(value)} aria-pressed={groupBy === value} className={cn("rounded-md px-3 py-1.5 text-[11px] transition", groupBy === value ? "bg-white font-medium text-ink shadow-sm" : "text-ink-soft")}>{label}</button>)}
@@ -235,8 +274,13 @@ export function ReportExperience({
     <div className="no-print mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
       <div className="relative min-w-[200px] flex-1 sm:max-w-xs"><Search size={15} className="pointer-events-none absolute left-3.5 top-[11px] text-ink-soft/70" /><input aria-label="Cari laporan" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari anggota atau aktivitas…" className="h-9 w-full rounded-xl border border-[#e2e8dd] bg-white pl-10 pr-9 text-xs outline-none focus:border-brand" />{search && <button onClick={() => setSearch("")} aria-label="Hapus pencarian" className="absolute right-3 top-[10px]"><X size={14} /></button>}</div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-ink-soft">
-        <span className="flex items-center gap-2"><span className="font-semibold text-ink">{data.members.filter(m => m.active !== false && report.activeMembers.some(a => a.id === m.id)).length}/{report.activeMemberCount}</span> anggota mengisi
-          <span className="h-1.5 w-20 overflow-hidden rounded-full bg-[#eef2ea]"><span className="block h-full rounded-full bg-brand" style={{ width: `${report.activeMemberCount ? data.members.filter(m => m.active !== false && report.activeMembers.some(a => a.id === m.id)).length / report.activeMemberCount * 100 : 0}%` }} /></span></span>
+        <span className="flex items-center gap-2"><span className="font-semibold text-ink">{data.members.filter(m => m.active !== false && report.activeMembers.some(a => a.id === m.id) && !absentMemberIds.has(m.id)).length}/{report.activeMemberCount}</span> anggota mengisi
+          <span className="h-1.5 w-20 overflow-hidden rounded-full bg-[#eef2ea]"><span className="block h-full rounded-full bg-brand" style={{ width: `${report.activeMemberCount ? data.members.filter(m => m.active !== false && report.activeMembers.some(a => a.id === m.id) && !absentMemberIds.has(m.id)).length / report.activeMemberCount * 100 : 0}%` }} /></span></span>
+        {absentMemberIds.size > 0 ? (
+          <span className="flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 font-medium text-orange-700">
+            {absentMemberIds.size} cuti/sakit/izin
+          </span>
+        ) : null}
         {report.missingMembers.length
           ? <span className="flex flex-wrap items-center gap-2">Belum: {report.missingMembers.map(m => <span key={m.id} className="flex items-center gap-1.5"><Avatar name={m.name} accent={data.members.find(x => x.id === m.id)?.accent} size="xs" /><span className="text-[10px]">{m.name}</span></span>)}</span>
           : <span className="flex items-center gap-1 text-brand"><CheckCheck size={14} /> Semua sudah mengisi</span>}

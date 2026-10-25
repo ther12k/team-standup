@@ -7,8 +7,10 @@ import { isDateSelectable, latestWorkingDayOnOrBefore, nonWorkingReason } from "
 import type { Holiday } from "@/lib/types";
 import { Button, cn } from "@/components/ui";
 
-export function WeekTickets({ date, today, onChange, counts, holidays, mode, onModeChange }: {
+export function WeekTickets({ date, today, onChange, counts, hasData, holidays, mode, onModeChange }: {
   date: string; today: string; onChange: (date: string) => void; counts: Record<string, number>; holidays: Holiday[];
+  /** Hari dengan data apa pun (termasuk yang hanya berisi keterangan cuti/izin) agar tetap bisa dibuka. */
+  hasData?: Record<string, boolean>;
   mode?: "harian" | "mingguan"; onModeChange?: (mode: "harian" | "mingguan") => void;
 }) {
   const calendar = useRef<HTMLInputElement>(null);
@@ -92,7 +94,7 @@ export function WeekTickets({ date, today, onChange, counts, holidays, mode, onM
                 const picked = e.target.value;
                 if (!isValidISODate(picked)) return;
                 // Hari libur/akhir pekan hanya bisa dibuka bila ada catatannya.
-                if (!isDateSelectable(picked, holidays, (counts[picked] ?? 0) > 0)) return;
+                if (!isDateSelectable(picked, holidays, hasData?.[picked] ?? (counts[picked] ?? 0) > 0)) return;
                 onChange(picked);
               }}
               aria-label="Tanggal laporan lainnya"
@@ -109,7 +111,7 @@ export function WeekTickets({ date, today, onChange, counts, holidays, mode, onM
         {days.map(day => {
           const selected = day === date;
           const count = counts[day] ?? 0;
-          const selectable = isDateSelectable(day, holidays, count > 0);
+          const selectable = isDateSelectable(day, holidays, hasData?.[day] ?? count > 0);
           const reason = nonWorkingReason(holidays, day);
           return <button
             key={day}

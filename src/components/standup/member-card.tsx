@@ -103,6 +103,7 @@ export function MemberEntryCard({
   projects,
   editing,
   inactive,
+  absence,
   onEdit,
   onCancel,
   onSave,
@@ -115,6 +116,8 @@ export function MemberEntryCard({
   projects: string[];
   editing: boolean;
   inactive?: boolean;
+  /** Keterangan tidak masuk (cuti/sakit/izin) bila anggota menuliskannya hari itu. */
+  absence?: { label: string; note: string };
   onEdit: () => void;
   onCancel: () => void;
   onSave: (draft: EntryDraft) => void;
@@ -130,6 +133,7 @@ export function MemberEntryCard({
         "flex h-full flex-col p-3.5 transition-shadow sm:p-4",
         editing && "ring-2 ring-brand/30",
         !filled && !editing && "bg-white/70",
+        absence && !editing && "border-orange-200 bg-orange-50/60",
         inactive && !editing && "opacity-75",
       )}
     >
@@ -138,6 +142,14 @@ export function MemberEntryCard({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <h3 className="truncate text-[13.5px] font-semibold leading-tight text-ink">{member.name}</h3>
+            {absence ? (
+              <span
+                className="rounded border border-orange-300 bg-orange-100 px-1.5 py-0 text-[9.5px] font-semibold uppercase tracking-wide text-orange-700"
+                title={absence.note || undefined}
+              >
+                {absence.label}
+              </span>
+            ) : null}
             {inactive ? (
               <span className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0 text-[9.5px] font-semibold uppercase tracking-wide text-slate-500">
                 Non-aktif
