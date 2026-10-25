@@ -1,6 +1,12 @@
 # Team Standup
 
+<p align="center">
+  <img src="docs/assets/teamstandup/brand/logo-horizontal.svg" alt="Team Standup" width="300">
+</p>
+
 Aplikasi web internal untuk standup harian tim — menggantikan laporan manual di grup chat. Catatan **Rencana / Selesai / Kendala** per anggota, pelacakan tugas, impor laporan lampau dari teks chat, rekap siap salin/ekspor, sesi **Standup Live**, laporan referensi divisi lain, dan **tautan berbagi ber-kunci** untuk pembaca tanpa akun. Antarmuka berbahasa Indonesia, zona waktu **Asia/Jakarta**.
+
+**Laman**: [ther12k.github.io/team-standup](https://ther12k.github.io/team-standup)
 
 Dibangun dengan **Vite + React 19 + Tailwind v4 + React Router** di frontend, dan **Elysia 2 di atas Bun** di backend dengan PostgreSQL (Drizzle ORM). Ringan, mulai dalam hitungan milidetik, tanpa overhead SSR yang rumit.
 
@@ -10,10 +16,10 @@ Dibangun dengan **Vite + React 19 + Tailwind v4 + React Router** di frontend, da
 
 ## Fitur
 
-- **Standup harian** — rencana/selesai/kendala per anggota dengan proyek opsional; sadar akhir pekan & hari libur nasional Indonesia (SKB resmi, bisa disunting tim).
+- **Standup harian** — rencana/selesai/kendala per anggota dengan proyek opsional; sadar akhir pekan & hari libur nasional Indonesia (SKB resmi, bisa disunting tim); catatan cuti/sakit/izin otomatis ditandai (lencana oranye) dan dikecualikan dari hitungan partisipasi.
 - **Tugas** — papan & daftar tugas dengan status, penanggung jawab, tenggat, riwayat status.
 - **Impor chat** — tempel ekspor chat grup (format laporan `👷 Nama` + bagian), tanggal dibandingkan dengan stempel waktu pesan; anggota baru otomatis dikenali.
-- **Laporan** — tampilan harian/mingguan, daftar per tim atau kisi per anggota, pencarian, ekspor CSV, salin ringkasan format WhatsApp, dan **Bagikan**: tautan ber-kunci (`/bagikan/…?k=…`) untuk orang luar tanpa akun — hanya rentang yang dibagikan yang terlihat, kedaluwarsa 180 hari.
+- **Laporan** — tampilan harian/mingguan (kartu tanggal atau kartu mingguan), daftar per tim atau kisi per anggota, pencarian, ekspor CSV, salin ringkasan format WhatsApp, dan **Bagikan**: tautan ber-kunci (`/bagikan/<id-8-karakter>?k=<kunci-6-karakter>`) untuk orang luar tanpa akun — hanya rentang yang dibagikan yang terlihat, kedaluwarsa 180 hari.
 - **Standup Live** — sesi obrolan terpandu koordinator: pilih pesan → aktivitas → terbitkan laporan yang langsung masuk riwayat standup; tautan baca-saja untuk arsip.
 - **Divisi lain** — laporan harian divisi lain sebagai referensi (ekstraktor arsip chat disertakan, `src/lib/division-extract.ts`).
 - **Login & pengguna** — akun internal (cookie sesi httpOnly, sandi scrypt), peran koordinator/anggota, divisi per akun, manajemen pengguna oleh koordinator. Tautan berbagi & laporan Live terlindungi kunci acak.
@@ -58,7 +64,7 @@ Container Docker menyajikan API Elysia 2 dan file statis frontend hasil build Vi
 ## Verifikasi
 
 ```bash
-bun test          # pengujian unit (65 tes lewat)
+bun test          # pengujian unit (73 tes lewat)
 bun run typecheck
 bun run lint
 ```
@@ -70,6 +76,7 @@ bun run lint
 - `src/server/` — backend Elysia 2 (routes: auth, workspace, users, shares, live, health).
 - `src/lib/` — parser impor chat/arsip divisi, logika hari kerja & libur Indonesia, scrypt, sesi.
 - `src/db/` — skema Drizzle PostgreSQL.
+- `public/` — set favicon (SVG/PNG/ICO), `site.webmanifest` (PWA + ikon maskable), dan aset merek di `assets/teamstandup/` (13 varian logo vektor, 40 ikon UI + sprite).
 
 ## Lisensi
 
