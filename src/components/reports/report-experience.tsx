@@ -16,7 +16,7 @@ import type { AppState, DivisionReport } from "@/lib/types";
 
 const sections = [
   { key: "plan", label: "Rencana", icon: ClipboardList, tone: "text-sky-700", bg: "bg-sky-50" },
-  { key: "done", label: "Selesai", icon: CircleCheck, tone: "text-brand", bg: "bg-emerald-50" },
+  { key: "done", label: "Pekerjaan Sebelumnya", icon: CircleCheck, tone: "text-brand", bg: "bg-emerald-50" },
   { key: "blocker", label: "Kendala", icon: AlertCircle, tone: "text-amber-700", bg: "bg-amber-50" },
 ] as const;
 

@@ -176,7 +176,7 @@ export default function StandupPage() {
       done: [...entry.done, { text: item.text, taskId: item.taskId, project: item.project }],
       blockers: entry.blockers,
     });
-    notify("Dipindahkan ke Selesai. Status tugas tidak ikut berubah.", "info");
+    notify("Dipindahkan ke Pekerjaan Sebelumnya. Status tugas tidak ikut berubah.", "info");
   };
 
   const handleAddMember = () => {
@@ -358,7 +358,7 @@ export default function StandupPage() {
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <StatCard label="Rencana" value={totals.plans} tone="brand" icon={<ClipboardList className="h-4 w-4" />} />
-        <StatCard label="Selesai" value={totals.done} hint="Dilaporkan eksplisit" tone="neutral" icon={<CheckCircle2 className="h-4 w-4" />} />
+        <StatCard label="Pekerjaan Sebelumnya" value={totals.done} hint="Dilaporkan eksplisit" tone="neutral" icon={<CheckCircle2 className="h-4 w-4" />} />
         <StatCard label="Kendala" value={totals.blockers} tone={totals.blockers > 0 ? "amber" : "neutral"} icon={<AlertTriangle className="h-4 w-4" />} />
         <StatCard label="Belum mengisi" value={missing.length} hint={`dari ${activeMembers.length} anggota aktif`} tone={missing.length > 0 ? "rose" : "neutral"} icon={<Users className="h-4 w-4" />} />
       </div>
@@ -583,7 +583,7 @@ export default function StandupPage() {
           <Card className="bg-[#fbfaf6] p-3.5">
             <SectionLabel>Catatan</SectionLabel>
             <ul className="mt-1.5 space-y-1 text-[11px] leading-snug text-ink-soft">
-              <li>• Rencana ≠ selesai. Bagian Selesai hanya untuk pekerjaan yang dilaporkan.</li>
+              <li>• Rencana ≠ pekerjaan sebelumnya. Bagian Pekerjaan Sebelumnya hanya untuk pekerjaan yang sudah dikerjakan.</li>
               <li>• Tanggal standup tidak pernah mengubah tenggat tugas.</li>
               <li>• Tugas dapat muncul di banyak standup dengan riwayat per tanggal.</li>
             </ul>

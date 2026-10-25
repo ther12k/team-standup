@@ -4,7 +4,7 @@
   <img src="docs/assets/teamstandup/brand/logo-horizontal.svg" alt="Team Standup" width="300">
 </p>
 
-Aplikasi web internal untuk standup harian tim — menggantikan laporan manual di grup chat. Catatan **Rencana / Selesai / Kendala** per anggota, pelacakan tugas, impor laporan lampau dari teks chat, rekap siap salin/ekspor, sesi **Standup Live**, laporan referensi divisi lain, dan **tautan berbagi ber-kunci** untuk pembaca tanpa akun. Antarmuka berbahasa Indonesia, zona waktu **Asia/Jakarta**.
+Aplikasi web internal untuk standup harian tim — menggantikan laporan manual di grup chat. Catatan **Rencana / Pekerjaan Sebelumnya / Kendala** per anggota, pelacakan tugas, impor laporan lampau dari teks chat, rekap siap salin/ekspor, sesi **Standup Live**, laporan referensi divisi lain, dan **tautan berbagi ber-kunci** untuk pembaca tanpa akun. Antarmuka berbahasa Indonesia, zona waktu **Asia/Jakarta**.
 
 **Laman**: [ther12k.github.io/team-standup](https://ther12k.github.io/team-standup)
 

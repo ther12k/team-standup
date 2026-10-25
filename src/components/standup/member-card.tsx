@@ -42,7 +42,7 @@ function EntrySection({
 }) {
   if (items.length === 0) return null;
   const tone = TONES[kind];
-  const label = kind === "plan" ? "Rencana" : kind === "done" ? "Selesai" : "Kendala";
+  const label = kind === "plan" ? "Rencana" : kind === "done" ? "Pekerjaan Sebelumnya" : "Kendala";
   return (
     <div>
       <div className="flex items-center gap-1.5">
@@ -80,8 +80,8 @@ function EntrySection({
                 <button
                   type="button"
                   onClick={() => onMoveToDone(item)}
-                  title="Pindahkan ke Selesai (hanya catatan standup, status tugas tidak berubah)"
-                  aria-label={`Pindahkan "${item.text}" ke Selesai`}
+                  title="Pindahkan ke Pekerjaan Sebelumnya (hanya catatan standup, status tugas tidak berubah)"
+                  aria-label={`Pindahkan "${item.text}" ke Pekerjaan Sebelumnya`}
                   className="mt-0.5 shrink-0 rounded-md border border-transparent p-1 text-slate-300 transition-colors hover:border-line hover:bg-white hover:text-teal-600 sm:opacity-0 sm:group-hover/item:opacity-100"
                 >
                   <Check className="h-3 w-3" />
@@ -200,7 +200,7 @@ export function MemberEntryCard({
         <div className="mt-3 flex flex-1 flex-col justify-center rounded-xl border border-dashed border-line bg-[#fbfaf6]/60 px-3 py-4 text-center">
           <p className="text-[12.5px] font-medium text-ink">Belum mengisi standup</p>
           <p className="mt-0.5 text-[11px] leading-snug text-ink-soft">
-            Catat rencana, pekerjaan selesai, atau kendala {entry ? "untuk tanggal ini" : "hari ini"}.
+            Catat rencana, pekerjaan sebelumnya, atau kendala {entry ? "untuk tanggal ini" : "hari ini"}.
           </p>
           <button
             type="button"

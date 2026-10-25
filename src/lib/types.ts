@@ -119,7 +119,7 @@ export type ItemKind = "plan" | "done" | "blocker";
 
 export const ITEM_KIND_LABEL: Record<ItemKind, string> = {
   plan: "Rencana",
-  done: "Selesai",
+  done: "Pekerjaan Sebelumnya",
   blocker: "Kendala",
 };
 

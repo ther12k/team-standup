@@ -35,15 +35,15 @@ const SECTIONS = [
     tone: "text-brand-dark",
     dot: "bg-brand",
     placeholder: "Contoh: review pull request fitur diskon",
-    hint: "Pekerjaan yang direncanakan — bukan pekerjaan selesai.",
+    hint: "Pekerjaan yang direncanakan — bukan pekerjaan yang sudah dikerjakan.",
   },
   {
     key: "done" as const,
-    label: "Selesai",
+    label: "Pekerjaan Sebelumnya",
     tone: "text-teal-700",
     dot: "bg-teal-500",
     placeholder: "Contoh: ganti housing kamera lorong 2",
-    hint: "Hanya isi pekerjaan yang benar-benar dilaporkan selesai.",
+    hint: "Pekerjaan yang sudah dikerjakan sejak laporan terakhir — bukan rencana.",
   },
   {
     key: "blockers" as const,

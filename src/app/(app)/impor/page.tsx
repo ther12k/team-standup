@@ -74,7 +74,7 @@ type ReportDraft = {
 
 const KIND_OPTIONS: { value: ItemKind; label: string }[] = [
   { value: "plan", label: "Rencana" },
-  { value: "done", label: "Selesai" },
+  { value: "done", label: "Pekerjaan Sebelumnya" },
   { value: "blocker", label: "Kendala" },
 ];
 

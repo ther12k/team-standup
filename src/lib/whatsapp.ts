@@ -28,7 +28,7 @@ export function formatStandupForWhatsApp(state: AppState, date: string): string 
     const member = state.members.find((m) => m.id === entry.memberId);
     const block: string[] = [];
     block.push(...section("Rencana", entry.plans.map((item) => item.text)));
-    block.push(...section("Selesai", entry.done.map((item) => item.text)));
+    block.push(...section("Pekerjaan Sebelumnya", entry.done.map((item) => item.text)));
     block.push(...section("Kendala", entry.blockers.map((item) => item.text)));
     if (block.length === 0) return;
     lines.push("", `*${member?.name ?? "Anggota"}*${member?.role ? ` — ${member.role}` : ""}`, ...block);
@@ -40,7 +40,7 @@ export function formatStandupForWhatsApp(state: AppState, date: string): string 
 export function formatReportForWhatsApp(report: ReportResult): string {
   const lines: string[] = [
     `*Laporan Standup — ${formatMediumDate(report.start)}${report.end !== report.start ? ` s.d. ${formatMediumDate(report.end)}` : ""}*`,
-    `_${report.plans} rencana • ${report.done} selesai • ${report.blockers} kendala_`,
+    `_${report.plans} rencana • ${report.done} pekerjaan sebelumnya • ${report.blockers} kendala_`,
   ];
 
   if (report.groups.length === 0) {
@@ -59,7 +59,7 @@ export function formatReportForWhatsApp(report: ReportResult): string {
           ].filter(Boolean);
           return context.length > 0 ? `${line.text} (${context.join(", ")})` : line.text;
         });
-      lines.push(...section(kind === "plan" ? "Rencana" : kind === "done" ? "Selesai" : "Kendala", items));
+      lines.push(...section(kind === "plan" ? "Rencana" : kind === "done" ? "Pekerjaan Sebelumnya" : "Kendala", items));
     });
   });
 
@@ -74,7 +74,7 @@ export function formatReportForWhatsApp(report: ReportResult): string {
 export function summarizeEntry(entry: StandupEntry): string {
   const parts = [
     entry.plans.length ? `${entry.plans.length} rencana` : null,
-    entry.done.length ? `${entry.done.length} selesai` : null,
+    entry.done.length ? `${entry.done.length} pekerjaan sebelumnya` : null,
     entry.blockers.length ? `${entry.blockers.length} kendala` : null,
   ].filter(Boolean);
   return parts.length ? parts.join(" • ") : "Belum diisi";
