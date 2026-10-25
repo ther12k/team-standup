@@ -48,9 +48,9 @@ export const authSessions = pgTable("standup_sessions", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
 });
 
-/** Tautan berbagi laporan tanpa login: id + kunci acak (hanya hash disimpan). */
+/** Tautan berbagi laporan tanpa login: id pendek alfanumerik + kunci acak (hanya hash disimpan). */
 export const shares = pgTable("standup_shares", {
-  id: uuid("id").primaryKey(),
+  id: text("id").primaryKey(),
   tokenHash: text("token_hash").notNull(),
   start: text("start").notNull(),
   end: text("end").notNull(),

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { filterStateForRange, shareCreateSchema } from "../src/lib/share";
+import { filterStateForRange, isValidShareId, shareCreateSchema } from "../src/lib/share";
 import type { AppState } from "../src/lib/types";
 
 function makeState(): AppState {
@@ -55,4 +55,22 @@ test("skema berbagi: start>end, tanggal rusak, dan rentang >62 hari ditolak", ()
   // 62 hari tepat masih boleh, 63 hari tidak.
   assert.equal(shareCreateSchema.safeParse({ start: "2026-01-01", end: "2026-03-03" }).success, true);
   assert.equal(shareCreateSchema.safeParse({ start: "2026-01-01", end: "2026-03-04" }).success, false);
+});
+
+test("ID tautan: 8 karakter alfanumerik diterima", () => {
+  assert.equal(isValidShareId("aB3xY9zQ"), true);
+  assert.equal(isValidShareId("7Kd0mPq2"), true);
+});
+
+test("ID tautan: UUID lama tetap sah agar tautan yang telah tersebar tidak mati", () => {
+  assert.equal(isValidShareId("1b671a64-40d5-491e-99f0-c2d8d6ec42f2"), true);
+});
+
+test("ID tautan: format lain ditolak", () => {
+  assert.equal(isValidShareId("aB3xY9z"), false); // terlalu pendek
+  assert.equal(isValidShareId("aB3xY9zQ1"), false); // terlalu panjang
+  assert.equal(isValidShareId("aB3xY9z-"), false); // simbol
+  assert.equal(isValidShareId(""), false);
+  assert.equal(isValidShareId("%3Cscript%3E"), false);
+  assert.equal(isValidShareId("1b671a64-40d5-491e-99f0-c2d8d6ec42z"), false); // UUID rusak
 });

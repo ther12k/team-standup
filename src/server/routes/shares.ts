@@ -20,7 +20,7 @@ export const shareRoutes = new Elysia({ prefix: "/api/shares" })
       return { error: "Gagal membuat tautan berbagi." };
     }
   })
-  .get("/:id", async ({ params, query, headers, set }) => {
+  .get("/:id", async ({ params, query, headers, set, request, server }) => {
     try {
       const header = headers.authorization ?? "";
       const key = header.startsWith("Bearer ") ? header.slice(7) : (query?.k ?? "");
@@ -28,7 +28,10 @@ export const shareRoutes = new Elysia({ prefix: "/api/shares" })
         set.status = 401;
         return { error: "Kunci akses tidak tersedia pada tautan." };
       }
-      return await readShare(params.id, key);
+      const forwarded = headers["x-forwarded-for"] ?? "";
+      const address = server?.requestIP?.(request)?.address ?? "";
+      const clientId = (typeof forwarded === "string" ? forwarded.split(",")[0]?.trim() : "") || address || "unknown";
+      return await readShare(params.id, key, clientId);
     } catch (e) {
       if (e instanceof WorkspaceError) {
         set.status = e.status;
