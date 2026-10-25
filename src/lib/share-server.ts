@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { eq, lt } from "drizzle-orm";
 import { db, pool } from "@/db";
 import { shares } from "@/db/schema";
@@ -6,16 +6,27 @@ import { getWorkspace, WorkspaceError } from "@/lib/workspace-server";
 import { filterStateForRange, shareCreateSchema } from "@/lib/share";
 
 /**
- * Tautan berbagi laporan tanpa login: pemilik login membuat tautan (id + kunci
- * acak 64 hex); hanya sha256 kunci yang disimpan. Pembuka tautan tanpa akun
- * hanya melihat entri pada rentang yang dibagikan, mengikuti data terkini.
+ * Tautan berbagi laporan tanpa login: pemilik login membuat tautan (id UUID +
+ * kunci pendek 6 karakter alfanumerik); hanya sha256 kunci yang disimpan.
+ * Pembuka tautan tanpa akun hanya melihat entri pada rentang yang dibagikan,
+ * mengikuti data terkini.
  */
 
 const SHARE_TTL_MS = 180 * 24 * 60 * 60 * 1000;
+/** Kunci 6 karakter alfanumerik (62^6 ≈ 57 miliar kombinasi); ID UUID di URL menambah ruang tebakan. */
+const KEY_LENGTH = 6;
+const KEY_ALPHABET = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const digest = (value: string) => createHash("sha256").update(value).digest("hex");
 
+function generateShareKey(): string {
+  let key = "";
+  for (let i = 0; i < KEY_LENGTH; i += 1) key += KEY_ALPHABET[randomInt(KEY_ALPHABET.length)];
+  return key;
+}
+
 function keyMatches(key: string, expectedHash: string): boolean {
-  return key.length >= 32 && timingSafeEqual(Buffer.from(digest(key)), Buffer.from(expectedHash));
+  // Digest sha256 selalu 32 byte sehingga perbandingan konstan-waktu aman untuk kunci pendek.
+  return key.length >= KEY_LENGTH && timingSafeEqual(Buffer.from(digest(key)), Buffer.from(expectedHash));
 }
 
 let tableReady: Promise<void> | null = null;
@@ -37,7 +48,7 @@ export async function createShare(body: unknown, createdBy: string): Promise<{ i
   await ensureSharesTable();
   const parsed = shareCreateSchema.safeParse(body);
   if (!parsed.success) throw new WorkspaceError(parsed.error.issues[0]?.message ?? "Data berbagi tidak valid.");
-  const key = randomBytes(32).toString("hex");
+  const key = generateShareKey();
   const id = randomUUID();
   const createdAt = new Date();
   // Bersihkan tautan lebih dari 180 hari secara oportunistik.
