@@ -39,20 +39,35 @@ export function WeekTickets({ date, today, onChange, counts, hasData, holidays, 
     const left = container.scrollLeft + selected.getBoundingClientRect().left - container.getBoundingClientRect().left - (container.clientWidth - selected.clientWidth) / 2;
     container.scrollTo({ left: Math.max(0, left), behavior: "auto" });
   }, [date]);
-  const before = Math.floor((capacity - 1) / 2);
-  const rangeStart = addDays(date, -before);
-  const days = eachDate(rangeStart, addDays(rangeStart, capacity - 1));
-  const firstMonth = Number(days[0].slice(5, 7)) - 1;
-  const lastMonth = Number(days[days.length - 1].slice(5, 7)) - 1;
+
+  const weekly = mode === "mingguan";
+  const selectedWeekStart = startOfWeek(date);
+
+  // Harian: rentang hari di sekitar tanggal terpilih. Mingguan: satu kartu per minggu
+  // (Senin sebagai jangkar), jumlah kartu menyesuaikan lebar bar.
+  const days = (() => {
+    const before = Math.floor((capacity - 1) / 2);
+    const rangeStart = addDays(date, -before);
+    return eachDate(rangeStart, addDays(rangeStart, capacity - 1));
+  })();
+  const weekCount = Math.max(5, Math.min(capacity - 2, 12));
+  const weeks = Array.from({ length: weekCount }, (_, i) => addDays(selectedWeekStart, -7 * (weekCount - 1 - i)));
+  const weekTotal = (weekStart: string) =>
+    eachDate(weekStart, addDays(weekStart, 6)).reduce((total, day) => total + (counts[day] ?? 0), 0);
+
+  const firstLabel = weekly ? weeks[0] : days[0];
+  const lastLabel = weekly ? addDays(weeks[weeks.length - 1], 6) : days[days.length - 1];
+  const firstMonth = Number(firstLabel.slice(5, 7)) - 1;
+  const lastMonth = Number(lastLabel.slice(5, 7)) - 1;
   const month =
     firstMonth === lastMonth
-      ? `${formatMonthName(firstMonth)} ${date.slice(0, 4)}`
-      : `${formatMonthName(firstMonth).slice(0, 3)} – ${formatMonthName(lastMonth).slice(0, 3)} ${days[days.length - 1].slice(0, 4)}`;
-  // Judul rentang efektif (menggantikan baris judul terpisah di bawah bar tanggal):
-  // harian = tanggal terpilih; mingguan = minggu yang memuat tanggal itu.
-  const effStart = mode === "mingguan" ? startOfWeek(date) : date;
-  const effEnd = mode === "mingguan" ? endOfWeek(date) : date;
-  const heading = mode === "mingguan"
+      ? `${formatMonthName(firstMonth)} ${firstLabel.slice(0, 4)}`
+      : `${formatMonthName(firstMonth).slice(0, 3)} – ${formatMonthName(lastMonth).slice(0, 3)} ${lastLabel.slice(0, 4)}`;
+
+  // Judul rentang efektif: harian = tanggal terpilih; mingguan = minggu yang memuat tanggal itu.
+  const effStart = weekly ? selectedWeekStart : date;
+  const effEnd = weekly ? endOfWeek(date) : date;
+  const heading = weekly
     ? `${formatMediumDate(effStart)} – ${formatMediumDate(effEnd)}`
     : formatLongDate(date);
   const todayInRange = today >= effStart && today <= effEnd;
@@ -94,7 +109,7 @@ export function WeekTickets({ date, today, onChange, counts, hasData, holidays, 
                 const picked = e.target.value;
                 if (!isValidISODate(picked)) return;
                 // Hari libur/akhir pekan hanya bisa dibuka bila ada catatannya.
-                if (!isDateSelectable(picked, holidays, hasData?.[picked] ?? (counts[picked] ?? 0) > 0)) return;
+                if (!weekly && !isDateSelectable(picked, holidays, hasData?.[picked] ?? (counts[picked] ?? 0) > 0)) return;
                 onChange(picked);
               }}
               aria-label="Tanggal laporan lainnya"
@@ -102,34 +117,66 @@ export function WeekTickets({ date, today, onChange, counts, hasData, holidays, 
             />
           </div>
           <div className="ml-1 flex gap-1 border-l border-line pl-2">
-            <Button className="size-8 px-0" onClick={() => onChange(addDays(date, -7))} aria-label="Minggu sebelumnya"><ChevronLeft size={16} /></Button>
-            <Button className="size-8 px-0" onClick={() => onChange(addDays(date, 7))} aria-label="Minggu berikutnya"><ChevronRight size={16} /></Button>
+            <Button className="size-8 px-0" onClick={() => onChange(addDays(weekly ? selectedWeekStart : date, -7))} aria-label="Minggu sebelumnya"><ChevronLeft size={16} /></Button>
+            <Button className="size-8 px-0" onClick={() => onChange(addDays(weekly ? endOfWeek(date) : date, 7))} aria-label="Minggu berikutnya"><ChevronRight size={16} /></Button>
           </div>
         </div>
       </div>
-      <div ref={track} className="ticket-track" role="group" aria-label={`Rentang ${formatMediumDate(days[0])} – ${formatMediumDate(days[days.length - 1])}`}>
-        {days.map(day => {
-          const selected = day === date;
-          const count = counts[day] ?? 0;
-          const selectable = isDateSelectable(day, holidays, hasData?.[day] ?? count > 0);
-          const reason = nonWorkingReason(holidays, day);
-          return <button
-            key={day}
-            type="button"
-            disabled={!selectable}
-            onClick={() => onChange(day)}
-            aria-pressed={selected}
-            aria-disabled={!selectable}
-            aria-label={`${formatLongDate(day)}, ${count} anggota mengisi${!selectable ? ` — ${reason}` : ""}`}
-            title={!selectable ? `Bukan hari kerja: ${reason}` : undefined}
-            className={cn("date-ticket", selected && "is-selected", day === today && "is-today", !selectable && "is-nonworking")}
-          >
-            <span className="ticket-day">{["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"][weekdayIndex(day)]}{day === today && <span className="ticket-today">Hari ini</span>}</span>
-            <span className="ticket-date">{Number(day.slice(8))}</span>
-            <span className="ticket-caption">{!selectable ? "Libur" : <>{selected ? <Check size={11} /> : <span className={cn("size-1.5 rounded-full", count ? "bg-brand" : "bg-slate-300")} />}{count ? ` ${count} anggota` : " Belum ada"}</>}</span>
-          </button>;
-        })}
-      </div>
+      {weekly ? (
+        <div ref={track} className="ticket-track" role="group" aria-label={`Minggu ${formatMediumDate(weeks[0])} – ${formatMediumDate(addDays(weeks[weeks.length - 1], 6))}`}>
+          {weeks.map(weekStart => {
+            const weekEnd = addDays(weekStart, 6);
+            const selected = weekStart === selectedWeekStart;
+            const total = weekTotal(weekStart);
+            const isThisWeek = today >= weekStart && today <= weekEnd;
+            const sameMonth = weekStart.slice(5, 7) === weekEnd.slice(5, 7);
+            return <button
+              key={weekStart}
+              type="button"
+              onClick={() => onChange(weekStart)}
+              aria-pressed={selected}
+              aria-label={`Minggu ${formatMediumDate(weekStart)} – ${formatMediumDate(weekEnd)}${total ? `, ${total} catatan` : ""}`}
+              className={cn("date-ticket", selected && "is-selected", isThisWeek && "is-today")}
+            >
+              <span className="ticket-day">
+                {sameMonth
+                  ? `${formatMonthName(Number(weekStart.slice(5, 7)) - 1).slice(0, 3)} ${weekStart.slice(0, 4)}`
+                  : `${formatMonthName(Number(weekStart.slice(5, 7)) - 1).slice(0, 3)} – ${formatMonthName(Number(weekEnd.slice(5, 7)) - 1).slice(0, 3)}`}
+                {isThisWeek && <span className="ticket-today">Hari ini</span>}
+              </span>
+              <span className="ticket-date">{Number(weekStart.slice(8))}–{Number(weekEnd.slice(8))}</span>
+              <span className="ticket-caption">
+                {selected ? <Check size={11} /> : <span className={cn("size-1.5 rounded-full", total ? "bg-brand" : "bg-slate-300")} />}
+                {total ? ` ${total} catatan` : " Belum ada"}
+              </span>
+            </button>;
+          })}
+        </div>
+      ) : (
+        <div ref={track} className="ticket-track" role="group" aria-label={`Rentang ${formatMediumDate(days[0])} – ${formatMediumDate(days[days.length - 1])}`}>
+          {days.map(day => {
+            const selected = day === date;
+            const count = counts[day] ?? 0;
+            const selectable = isDateSelectable(day, holidays, hasData?.[day] ?? count > 0);
+            const reason = nonWorkingReason(holidays, day);
+            return <button
+              key={day}
+              type="button"
+              disabled={!selectable}
+              onClick={() => onChange(day)}
+              aria-pressed={selected}
+              aria-disabled={!selectable}
+              aria-label={`${formatLongDate(day)}, ${count} anggota mengisi${!selectable ? ` — ${reason}` : ""}`}
+              title={!selectable ? `Bukan hari kerja: ${reason}` : undefined}
+              className={cn("date-ticket", selected && "is-selected", day === today && "is-today", !selectable && "is-nonworking")}
+            >
+              <span className="ticket-day">{["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"][weekdayIndex(day)]}{day === today && <span className="ticket-today">Hari ini</span>}</span>
+              <span className="ticket-date">{Number(day.slice(8))}</span>
+              <span className="ticket-caption">{!selectable ? "Libur" : <>{selected ? <Check size={11} /> : <span className={cn("size-1.5 rounded-full", count ? "bg-brand" : "bg-slate-300")} />}{count ? ` ${count} anggota` : " Belum ada"}</>}</span>
+            </button>;
+          })}
+        </div>
+      )}
     </section>
   );
 }
