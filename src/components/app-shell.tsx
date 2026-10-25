@@ -37,18 +37,11 @@ const NAV = [
 function Brand({ compact = false }: { compact?: boolean }) {
   return (
     <Link href="/" className="flex items-center gap-2.5">
-      <span className="grid h-9 w-9 place-items-center rounded-xl bg-brand text-white shadow-sm">
-        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.1">
-          <path d="M4 7.5h9M4 12h6" strokeLinecap="round" />
-          <path d="M13.5 16.5l2.3 2.3 4.7-5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </span>
-      {!compact ? (
-        <span className="leading-tight">
-          <span className="block text-[15px] font-semibold tracking-tight text-ink">Team Standup</span>
-          <span className="block text-[11px] text-ink-soft">Ruang kerja operasional</span>
-        </span>
-      ) : null}
+      {compact ? (
+        <img src="/assets/teamstandup/brand/app-icon.svg" alt="Team Standup" className="h-9 w-9" />
+      ) : (
+        <img src="/assets/teamstandup/brand/logo-horizontal.svg" alt="Team Standup" className="h-9 w-auto" />
+      )}
     </Link>
   );
 }

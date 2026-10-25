@@ -45,17 +45,8 @@ export default function LoginPage() {
   return (
     <main className="grid min-h-screen place-items-center bg-[#f6f5f0] px-4 py-10">
       <div className="w-full max-w-sm">
-        <div className="mb-6 flex items-center gap-2.5">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand text-white shadow-sm">
-            <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2.1">
-              <path d="M4 7.5h9M4 12h6" strokeLinecap="round" />
-              <path d="M13.5 16.5l2.3 2.3 4.7-5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </span>
-          <span className="leading-tight">
-            <span className="block text-[16px] font-semibold tracking-tight text-ink">Team Standup</span>
-            <span className="block text-[12px] text-ink-soft">Ruang kerja operasional tim</span>
-          </span>
+        <div className="mb-6">
+          <img src="/assets/teamstandup/brand/logo-horizontal-tagline.svg" alt="Team Standup" className="h-16 w-auto" />
         </div>
 
         <form

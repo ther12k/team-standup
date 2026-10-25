@@ -1,0 +1,282 @@
+[
+  {
+    "name": "standup",
+    "label": "Standup",
+    "group": "navigation",
+    "file": "standup.svg",
+    "symbol": "ts-standup"
+  },
+  {
+    "name": "tasks",
+    "label": "Tugas",
+    "group": "navigation",
+    "file": "tasks.svg",
+    "symbol": "ts-tasks"
+  },
+  {
+    "name": "reports",
+    "label": "Laporan",
+    "group": "navigation",
+    "file": "reports.svg",
+    "symbol": "ts-reports"
+  },
+  {
+    "name": "divisions",
+    "label": "Divisi Lain",
+    "group": "navigation",
+    "file": "divisions.svg",
+    "symbol": "ts-divisions"
+  },
+  {
+    "name": "import",
+    "label": "Impor",
+    "group": "navigation",
+    "file": "import.svg",
+    "symbol": "ts-import"
+  },
+  {
+    "name": "users",
+    "label": "Pengguna",
+    "group": "navigation",
+    "file": "users.svg",
+    "symbol": "ts-users"
+  },
+  {
+    "name": "live",
+    "label": "Standup Live",
+    "group": "activity",
+    "file": "live.svg",
+    "symbol": "ts-live"
+  },
+  {
+    "name": "calendar",
+    "label": "Rencana",
+    "group": "activity",
+    "file": "calendar.svg",
+    "symbol": "ts-calendar"
+  },
+  {
+    "name": "check-circle",
+    "label": "Selesai",
+    "group": "activity",
+    "file": "check-circle.svg",
+    "symbol": "ts-check-circle"
+  },
+  {
+    "name": "alert-triangle",
+    "label": "Kendala",
+    "group": "activity",
+    "file": "alert-triangle.svg",
+    "symbol": "ts-alert-triangle"
+  },
+  {
+    "name": "carry-forward",
+    "label": "Bawa tugas",
+    "group": "activity",
+    "file": "carry-forward.svg",
+    "symbol": "ts-carry-forward"
+  },
+  {
+    "name": "copy",
+    "label": "Salin",
+    "group": "activity",
+    "file": "copy.svg",
+    "symbol": "ts-copy"
+  },
+  {
+    "name": "link",
+    "label": "Bagikan",
+    "group": "activity",
+    "file": "link.svg",
+    "symbol": "ts-link"
+  },
+  {
+    "name": "notes",
+    "label": "Catatan",
+    "group": "activity",
+    "file": "notes.svg",
+    "symbol": "ts-notes"
+  },
+  {
+    "name": "plus",
+    "label": "Tambah",
+    "group": "utility",
+    "file": "plus.svg",
+    "symbol": "ts-plus"
+  },
+  {
+    "name": "edit",
+    "label": "Edit",
+    "group": "utility",
+    "file": "edit.svg",
+    "symbol": "ts-edit"
+  },
+  {
+    "name": "trash",
+    "label": "Hapus",
+    "group": "utility",
+    "file": "trash.svg",
+    "symbol": "ts-trash"
+  },
+  {
+    "name": "search",
+    "label": "Cari",
+    "group": "utility",
+    "file": "search.svg",
+    "symbol": "ts-search"
+  },
+  {
+    "name": "filter",
+    "label": "Filter",
+    "group": "utility",
+    "file": "filter.svg",
+    "symbol": "ts-filter"
+  },
+  {
+    "name": "sort",
+    "label": "Urutkan",
+    "group": "utility",
+    "file": "sort.svg",
+    "symbol": "ts-sort"
+  },
+  {
+    "name": "more",
+    "label": "Lainnya",
+    "group": "utility",
+    "file": "more.svg",
+    "symbol": "ts-more"
+  },
+  {
+    "name": "settings",
+    "label": "Pengaturan",
+    "group": "utility",
+    "file": "settings.svg",
+    "symbol": "ts-settings"
+  },
+  {
+    "name": "chevron-left",
+    "label": "Sebelumnya",
+    "group": "utility",
+    "file": "chevron-left.svg",
+    "symbol": "ts-chevron-left"
+  },
+  {
+    "name": "chevron-right",
+    "label": "Berikutnya",
+    "group": "utility",
+    "file": "chevron-right.svg",
+    "symbol": "ts-chevron-right"
+  },
+  {
+    "name": "chevron-down",
+    "label": "Buka menu",
+    "group": "utility",
+    "file": "chevron-down.svg",
+    "symbol": "ts-chevron-down"
+  },
+  {
+    "name": "x",
+    "label": "Tutup",
+    "group": "utility",
+    "file": "x.svg",
+    "symbol": "ts-x"
+  },
+  {
+    "name": "download",
+    "label": "Unduh",
+    "group": "utility",
+    "file": "download.svg",
+    "symbol": "ts-download"
+  },
+  {
+    "name": "upload",
+    "label": "Unggah",
+    "group": "utility",
+    "file": "upload.svg",
+    "symbol": "ts-upload"
+  },
+  {
+    "name": "file-text",
+    "label": "Dokumen",
+    "group": "utility",
+    "file": "file-text.svg",
+    "symbol": "ts-file-text"
+  },
+  {
+    "name": "eye",
+    "label": "Pratinjau",
+    "group": "utility",
+    "file": "eye.svg",
+    "symbol": "ts-eye"
+  },
+  {
+    "name": "circle",
+    "label": "Belum mulai",
+    "group": "status",
+    "file": "circle.svg",
+    "symbol": "ts-circle"
+  },
+  {
+    "name": "play-circle",
+    "label": "Dikerjakan",
+    "group": "status",
+    "file": "play-circle.svg",
+    "symbol": "ts-play-circle"
+  },
+  {
+    "name": "pause-circle",
+    "label": "Ditunda",
+    "group": "status",
+    "file": "pause-circle.svg",
+    "symbol": "ts-pause-circle"
+  },
+  {
+    "name": "clock",
+    "label": "Tenggat",
+    "group": "status",
+    "file": "clock.svg",
+    "symbol": "ts-clock"
+  },
+  {
+    "name": "history",
+    "label": "Riwayat",
+    "group": "status",
+    "file": "history.svg",
+    "symbol": "ts-history"
+  },
+  {
+    "name": "refresh",
+    "label": "Muat ulang",
+    "group": "status",
+    "file": "refresh.svg",
+    "symbol": "ts-refresh"
+  },
+  {
+    "name": "logout",
+    "label": "Keluar",
+    "group": "account",
+    "file": "logout.svg",
+    "symbol": "ts-logout"
+  },
+  {
+    "name": "help-circle",
+    "label": "Bantuan",
+    "group": "account",
+    "file": "help-circle.svg",
+    "symbol": "ts-help-circle"
+  },
+  {
+    "name": "save",
+    "label": "Simpan",
+    "group": "account",
+    "file": "save.svg",
+    "symbol": "ts-save"
+  },
+  {
+    "name": "user-plus",
+    "label": "Tambah anggota",
+    "group": "account",
+    "file": "user-plus.svg",
+    "symbol": "ts-user-plus"
+  }
+]
