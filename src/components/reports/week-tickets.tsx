@@ -7,11 +7,13 @@ import { isDateSelectable, latestWorkingDayOnOrBefore, nonWorkingReason } from "
 import type { Holiday } from "@/lib/types";
 import { Button, cn } from "@/components/ui";
 
-export function WeekTickets({ date, today, onChange, counts, hasData, holidays, mode, onModeChange }: {
+export function WeekTickets({ date, today, onChange, counts, hasData, holidays, mode, onModeChange, bounds }: {
   date: string; today: string; onChange: (date: string) => void; counts: Record<string, number>; holidays: Holiday[];
   /** Hari dengan data apa pun (termasuk yang hanya berisi keterangan cuti/izin) agar tetap bisa dibuka. */
   hasData?: Record<string, boolean>;
   mode?: "harian" | "mingguan"; onModeChange?: (mode: "harian" | "mingguan") => void;
+  /** Batas navigasi (tautan berbagi): tanggal di luar rentang ini tidak bisa dipilih. */
+  bounds?: { min: string; max: string };
 }) {
   const calendar = useRef<HTMLInputElement>(null);
   const track = useRef<HTMLDivElement>(null);
@@ -44,16 +46,39 @@ export function WeekTickets({ date, today, onChange, counts, hasData, holidays, 
   const selectedWeekStart = startOfWeek(date);
 
   // Harian: rentang hari di sekitar tanggal terpilih. Mingguan: satu kartu per minggu
-  // (Senin sebagai jangkar), jumlah kartu menyesuaikan lebar bar.
+  // (Senin sebagai jangkar), jumlah kartu menyesuaikan lebar bar. Dengan `bounds`
+  // (tautan berbagi) semuanya dipotong ke jendela yang dibagikan.
+  const clampDay = (value: string) => (!bounds ? value : value < bounds.min ? bounds.min : value > bounds.max ? bounds.max : value);
   const days = (() => {
     const before = Math.floor((capacity - 1) / 2);
-    const rangeStart = addDays(date, -before);
-    return eachDate(rangeStart, addDays(rangeStart, capacity - 1));
+    let rangeStart = addDays(date, -before);
+    let rangeEnd = addDays(rangeStart, capacity - 1);
+    if (bounds) {
+      rangeStart = rangeStart < bounds.min ? bounds.min : rangeStart;
+      rangeEnd = rangeEnd > bounds.max ? bounds.max : rangeEnd;
+      // Saat terpotong di ujung, geser jendela agar kartu tetap terisi penuh.
+      if (rangeEnd === bounds.max) rangeStart = bounds.min > addDays(rangeEnd, -(capacity - 1)) ? bounds.min : addDays(rangeEnd, -(capacity - 1));
+      if (rangeEnd < rangeStart) rangeEnd = rangeStart;
+    }
+    return eachDate(rangeStart, rangeEnd);
   })();
-  const weekCount = Math.max(5, Math.min(capacity - 2, 12));
-  const weeks = Array.from({ length: weekCount }, (_, i) => addDays(selectedWeekStart, -7 * (weekCount - 1 - i)));
+  const weeks = (() => {
+    if (bounds) {
+      const list: string[] = [];
+      for (let w = startOfWeek(bounds.min); w <= bounds.max; w = addDays(w, 7)) list.push(w);
+      return list;
+    }
+    const weekCount = Math.max(5, Math.min(capacity - 2, 12));
+    return Array.from({ length: weekCount }, (_, i) => addDays(selectedWeekStart, -7 * (weekCount - 1 - i)));
+  })();
   const weekTotal = (weekStart: string) =>
     eachDate(weekStart, addDays(weekStart, 6)).reduce((total, day) => total + (counts[day] ?? 0), 0);
+
+  // Panah melangkah satu minggu; pada mode terikat, langkah dipotong/dimatikan di batas.
+  const prevTarget = weekly ? addDays(selectedWeekStart, -7) : clampDay(addDays(date, -7));
+  const nextTarget = weekly ? addDays(selectedWeekStart, 7) : clampDay(addDays(date, 7));
+  const prevDisabled = bounds ? (weekly ? startOfWeek(prevTarget) < startOfWeek(bounds.min) : prevTarget === date) : false;
+  const nextDisabled = bounds ? (weekly ? startOfWeek(nextTarget) > startOfWeek(bounds.max) : nextTarget === date) : false;
 
   const firstLabel = weekly ? weeks[0] : days[0];
   const lastLabel = weekly ? addDays(weeks[weeks.length - 1], 6) : days[days.length - 1];
@@ -98,7 +123,7 @@ export function WeekTickets({ date, today, onChange, counts, hasData, holidays, 
               ))}
             </div>
           ) : null}
-          <Button variant="ghost" onClick={() => onChange(latestWorkingDayOnOrBefore(today, holidays))} className="h-8 px-2.5 text-xs">Hari ini</Button>
+          <Button variant="ghost" onClick={() => onChange(clampDay(latestWorkingDayOnOrBefore(today, holidays)))} className="h-8 px-2.5 text-xs">Hari ini</Button>
           <div className="relative">
             <Button onClick={() => { try { calendar.current?.showPicker(); } catch { calendar.current?.focus(); } }} className="h-8 px-3 text-xs"><CalendarDays size={14} /> Tanggal lain</Button>
             <input
@@ -106,8 +131,9 @@ export function WeekTickets({ date, today, onChange, counts, hasData, holidays, 
               type="date"
               value={date}
               onChange={e => {
-                const picked = e.target.value;
+                let picked = e.target.value;
                 if (!isValidISODate(picked)) return;
+                if (bounds) picked = clampDay(picked);
                 // Hari libur/akhir pekan hanya bisa dibuka bila ada catatannya.
                 if (!weekly && !isDateSelectable(picked, holidays, hasData?.[picked] ?? (counts[picked] ?? 0) > 0)) return;
                 onChange(picked);
@@ -117,8 +143,8 @@ export function WeekTickets({ date, today, onChange, counts, hasData, holidays, 
             />
           </div>
           <div className="ml-1 flex gap-1 border-l border-line pl-2">
-            <Button className="size-8 px-0" onClick={() => onChange(addDays(weekly ? selectedWeekStart : date, -7))} aria-label="Minggu sebelumnya"><ChevronLeft size={16} /></Button>
-            <Button className="size-8 px-0" onClick={() => onChange(addDays(weekly ? endOfWeek(date) : date, 7))} aria-label="Minggu berikutnya"><ChevronRight size={16} /></Button>
+            <Button className="size-8 px-0" disabled={prevDisabled} onClick={() => onChange(prevTarget)} aria-label="Minggu sebelumnya"><ChevronLeft size={16} /></Button>
+            <Button className="size-8 px-0" disabled={nextDisabled} onClick={() => onChange(nextTarget)} aria-label="Minggu berikutnya"><ChevronRight size={16} /></Button>
           </div>
         </div>
       </div>

@@ -521,3 +521,8 @@ export function useStore(): StoreValue {
   if (!context) throw new Error("useStore harus dipakai di dalam StoreProvider");
   return context;
 }
+
+/** Seperti useStore, tetapi null di luar StoreProvider — untuk komponen yang dipakai juga di halaman publik (tautan berbagi). */
+export function useStoreOptional(): StoreValue | null {
+  return useContext(StoreContext);
+}

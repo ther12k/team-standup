@@ -3,7 +3,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { AlertCircle, Check, CheckCheck, CircleCheck, ClipboardList, Download, FileText, LayoutGrid, List, MapPin, Search, Share2, X } from "lucide-react";
-import { useStore } from "@/lib/store";
+import { useStoreOptional } from "@/lib/store";
 import { WeekTickets } from "@/components/reports/week-tickets";
 import { DivisionChip, DivisionReportModal, latestPerDivisionInRange } from "@/components/divisions/report-modal";
 import { Avatar, Button, CopyButton, EmptyState, Modal, PageLoading, StatusBadge, cn } from "@/components/ui";
@@ -124,28 +124,41 @@ export function TeamCard({ title, memberCards, data, snapshot, showDate }: {
 }
 
 /**
- * Pengalaman laporan yang sama untuk menu Laporan (/laporan) dan tampilan fokus
- * (/laporan/lihat): bar tanggal, alat ringkas, chip divisi lain, daftar/kisi.
- * `data` bisa berupa state workspace (mode biasa) atau snapshot laporan Live.
+ * Pengalaman laporan yang sama untuk menu Laporan (/laporan), tampilan fokus
+ * (/laporan/lihat), dan pembaca tautan berbagi (/bagikan): bar tanggal, alat
+ * ringkas, chip divisi lain, daftar/kisi. `data` bisa berupa state workspace
+ * (mode biasa), snapshot laporan Live, atau state tersaring tautan berbagi.
  */
 export function ReportExperience({
   data,
   today,
   snapshot = false,
   initialDate,
+  initialMode,
   loading = false,
+  readOnly = false,
+  bounds,
 }: {
   data: AppState | null;
   today: string;
   snapshot?: boolean;
   /** Tanggal awal (dari ?date= atau tanggal laporan Live); pilihan pengguna menang. */
   initialDate?: string | null;
+  /** Mode awal harian/mingguan (tautan berbagi menyimpan mode pembuatnya). */
+  initialMode?: "harian" | "mingguan";
   loading?: boolean;
+  /** Mode baca-saja (tautan berbagi): tanpa tombol Bagikan. */
+  readOnly?: boolean;
+  /** Batas navigasi tanggal (jendela tautan berbagi). */
+  bounds?: { min: string; max: string };
 }) {
-  const { state } = useStore();
+  // Di luar StoreProvider (halaman berbagi publik) libur diambil dari `data`;
+  // di dalam aplikasi state workspace tetap sumbernya.
+  const store = useStoreOptional();
+  const holidays = data?.holidays ?? store?.state.holidays ?? [];
   const [date, setDate] = useState("");
   const [groupBy, setGroupBy] = useState<ReportGroupBy>("member");
-  const [mode, setMode] = useState<"harian" | "mingguan">("harian");
+  const [mode, setMode] = useState<"harian" | "mingguan">(initialMode ?? "harian");
   const [view, setView] = useState<"grid" | "list">("list");
   const [search, setSearch] = useState("");
   const [divisionReport, setDivisionReport] = useState<DivisionReport | null>(null);
@@ -158,12 +171,20 @@ export function ReportExperience({
     // Tanggal awal: ?date= pada URL, lalu tanggal laporan Live, lalu hari kerja terakhir.
     const params = new URLSearchParams(window.location.search);
     const fromUrl = params.get("date");
-    setDate(current => current || (isValidISODate(fromUrl) ? fromUrl : ""));
+    if (!isValidISODate(fromUrl)) return;
+    // Di jendela berbagi, tanggal URL di luar jendela diabaikan.
+    if (bounds && (fromUrl < bounds.min || fromUrl > bounds.max)) return;
+    setDate(current => current || fromUrl);
+    // bounds stabil per halaman (jendela berbagi); cukup dibaca sekali.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (!today) return;
-    setDate(current => current || latestWorkingDayOnOrBefore(today, state.holidays ?? []));
+    // Di jendela berbagi, "hari ini" bisa berada di luar jendela — tanggal awal
+    // selalu tanggal yang dibagikan (initialDate).
+    if (bounds) return;
+    setDate(current => current || latestWorkingDayOnOrBefore(today, holidays));
     // holidays dibiarkan dari dependensi: default hanya dihitung sekali per hari.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [today]);
@@ -251,7 +272,7 @@ export function ReportExperience({
 
   const groups = report.groups.filter(g => `${g.title} ${g.lines.map(l => `${l.memberName} ${l.text}`).join(" ")}`.toLowerCase().includes(search.toLowerCase()));
   return <>
-    <WeekTickets date={date} today={today} onChange={selectDate} counts={counts} hasData={hasData} holidays={state.holidays ?? []} mode={mode} onModeChange={setMode} />
+    <WeekTickets date={date} today={today} onChange={selectDate} counts={counts} hasData={hasData} holidays={holidays} mode={mode} onModeChange={setMode} bounds={bounds} />
     <div className="mt-3 mb-3 flex flex-wrap items-center justify-end gap-2.5">
       <div className="flex gap-1 rounded-lg bg-[#eaf0e7] p-1" role="group" aria-label="Kelompok laporan">
         {([['member', 'Per anggota'], ['project', 'Per proyek']] as const).map(([value, label]) => <button key={value} onClick={() => setGroupBy(value)} aria-pressed={groupBy === value} className={cn("rounded-md px-3 py-1.5 text-[11px] transition", groupBy === value ? "bg-white font-medium text-ink shadow-sm" : "text-ink-soft")}>{label}</button>)}
@@ -265,7 +286,7 @@ export function ReportExperience({
       </div>
       <Button onClick={exportCsv} disabled={!report.lines.length} size="sm" className="text-xs"><Download size={14} /> Ekspor CSV</Button>
       <CopyButton text={formatReportForWhatsApp(report)} label="Salin ringkasan" disabled={!report.lines.length} size="sm" className="text-xs" />
-      {!snapshot ? (
+      {!snapshot && !readOnly ? (
         <Button onClick={() => void createShareLink()} disabled={shareBusy} size="sm" className="text-xs">
           <Share2 size={14} /> {shareBusy ? "Menyiapkan…" : "Bagikan"}
         </Button>

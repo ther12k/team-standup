@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { filterStateForRange, isValidShareId, shareCreateSchema, shareModeFor, shareWindowStart } from "../src/lib/share";
+import { filterStateForRange, isValidShareId, shareCreateSchema, shareModeFor, shareWindowEnd, shareWindowStart } from "../src/lib/share";
 import type { AppState } from "../src/lib/types";
 
 function makeState(): AppState {
@@ -80,9 +80,14 @@ test("mode tautan: satu hari = harian, rentang = mingguan", () => {
   assert.equal(shareModeFor("2026-10-19", "2026-10-25"), "week");
 });
 
-test("jendela mundur: harian 10 hari sebelumnya, mingguan 1 minggu sebelumnya", () => {
-  assert.equal(shareWindowStart("2026-10-23", "2026-10-23"), "2026-10-13");
-  // lintasi bulan tetap akurat
-  assert.equal(shareWindowStart("2026-11-03", "2026-11-03"), "2026-10-24");
-  assert.equal(shareWindowStart("2026-10-19", "2026-10-25"), "2026-10-12");
+test("jendela tautan: Senin minggu sebelumnya sampai akhir minggu yang dibagikan", () => {
+  // Tautan hari (Jumat 23 Okt): jendela = Senin 12 Okt s.d. Min 25 Okt.
+  assert.equal(shareWindowStart("2026-10-23"), "2026-10-12");
+  assert.equal(shareWindowEnd("2026-10-23", "2026-10-23"), "2026-10-25");
+  // Tautan minggu (19–25 Okt): jendela sama.
+  assert.equal(shareWindowStart("2026-10-19"), "2026-10-12");
+  assert.equal(shareWindowEnd("2026-10-19", "2026-10-25"), "2026-10-25");
+  // Lintasi bulan tetap akurat (Senin 2 Nov anchoring → minggu sebelumnya Senin 26 Okt).
+  assert.equal(shareWindowStart("2026-11-03"), "2026-10-26");
+  assert.equal(shareWindowEnd("2026-11-03", "2026-11-03"), "2026-11-08");
 });
