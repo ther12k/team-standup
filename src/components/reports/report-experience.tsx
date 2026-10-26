@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Check, CheckCheck, CircleCheck, ClipboardList, Download, FileText, LayoutGrid, List, MapPin, Search, Share2, X } from "lucide-react";
+import { AlertCircle, Check, CheckCheck, CircleCheck, ClipboardList, Download, FileText, LayoutGrid, List, MapPin, Share2 } from "lucide-react";
 import { useStoreOptional } from "@/lib/store";
 import { WeekTickets } from "@/components/reports/week-tickets";
 import { DivisionChip, DivisionReportModal, latestPerDivisionInRange } from "@/components/divisions/report-modal";
@@ -160,7 +160,6 @@ export function ReportExperience({
   const [groupBy, setGroupBy] = useState<ReportGroupBy>("member");
   const [mode, setMode] = useState<"harian" | "mingguan">(initialMode ?? "harian");
   const [view, setView] = useState<"grid" | "list">("list");
-  const [search, setSearch] = useState("");
   const [divisionReport, setDivisionReport] = useState<DivisionReport | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareUrl, setShareUrl] = useState("");
@@ -218,16 +217,6 @@ export function ReportExperience({
     data?.entries.forEach(e => { if (e.plans.length + e.done.length + e.blockers.length) result[e.date] = true; });
     return result;
   }, [data]);
-  // Anggota dengan keterangan cuti/sakit/izin pada rentang aktif — ditampilkan
-  // dengan penanda oranye, tidak dihitung sebagai "mengisi".
-  const absentMemberIds = useMemo(() => {
-    const set = new Set<string>();
-    if (!range) return set;
-    data?.entries.forEach(e => {
-      if (e.date >= range.start && e.date <= range.end && entryAbsence(e)) set.add(e.memberId);
-    });
-    return set;
-  }, [data, range]);
 
   const selectDate = (value: string) => {
     setDate(value);
@@ -270,7 +259,7 @@ export function ReportExperience({
 
   if (loading || !report || !data || !date) return <PageLoading label="Menyiapkan laporan…" />;
 
-  const groups = report.groups.filter(g => `${g.title} ${g.lines.map(l => `${l.memberName} ${l.text}`).join(" ")}`.toLowerCase().includes(search.toLowerCase()));
+  const groups = report.groups;
   return <>
     <WeekTickets date={date} today={today} onChange={selectDate} counts={counts} hasData={hasData} holidays={holidays} mode={mode} onModeChange={setMode} bounds={bounds} />
     <div className="mt-3 mb-3 flex flex-wrap items-center justify-end gap-2.5">
@@ -291,21 +280,6 @@ export function ReportExperience({
           <Share2 size={14} /> {shareBusy ? "Menyiapkan…" : "Bagikan"}
         </Button>
       ) : null}
-    </div>
-    <div className="no-print mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
-      <div className="relative min-w-[200px] flex-1 sm:max-w-xs"><Search size={15} className="pointer-events-none absolute left-3.5 top-[11px] text-ink-soft/70" /><input aria-label="Cari laporan" value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari anggota atau aktivitas…" className="h-9 w-full rounded-xl border border-[#e2e8dd] bg-white pl-10 pr-9 text-xs outline-none focus:border-brand" />{search && <button onClick={() => setSearch("")} aria-label="Hapus pencarian" className="absolute right-3 top-[10px]"><X size={14} /></button>}</div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-ink-soft">
-        <span className="flex items-center gap-2"><span className="font-semibold text-ink">{data.members.filter(m => m.active !== false && report.activeMembers.some(a => a.id === m.id) && !absentMemberIds.has(m.id)).length}/{report.activeMemberCount}</span> anggota mengisi
-          <span className="h-1.5 w-20 overflow-hidden rounded-full bg-[#eef2ea]"><span className="block h-full rounded-full bg-brand" style={{ width: `${report.activeMemberCount ? data.members.filter(m => m.active !== false && report.activeMembers.some(a => a.id === m.id) && !absentMemberIds.has(m.id)).length / report.activeMemberCount * 100 : 0}%` }} /></span></span>
-        {absentMemberIds.size > 0 ? (
-          <span className="flex items-center gap-1 rounded-full border border-orange-200 bg-orange-50 px-2 py-0.5 font-medium text-orange-700">
-            {absentMemberIds.size} cuti/sakit/izin
-          </span>
-        ) : null}
-        {report.missingMembers.length
-          ? <span className="flex flex-wrap items-center gap-2">Belum: {report.missingMembers.map(m => <span key={m.id} className="flex items-center gap-1.5"><Avatar name={m.name} accent={data.members.find(x => x.id === m.id)?.accent} size="xs" /><span className="text-[10px]">{m.name}</span></span>)}</span>
-          : <span className="flex items-center gap-1 text-brand"><CheckCheck size={14} /> Semua sudah mengisi</span>}
-      </div>
     </div>
     {divisionChips.length > 0 ? (
       <div className="no-print mb-3 flex flex-wrap items-center gap-1.5">
@@ -342,7 +316,7 @@ export function ReportExperience({
           {groups.map(group => <ReportCard key={group.key} group={group} data={data} groupBy={groupBy} snapshot={snapshot} showDate={multiDay} />)}
         </div>
       )
-    ) : <div className="rounded-2xl border border-dashed border-line bg-white py-8"><EmptyState icon={<FileText size={20} />} title={search ? "Tidak ada laporan yang cocok" : multiDay ? "Belum ada catatan pada minggu ini" : "Belum ada cerita di hari ini"} description={search ? "Coba kata kunci lain atau hapus pencarian." : snapshot ? `Snapshot ini memuat laporan ${formatMediumDate(date)}.` : "Pilih tanggal lain di atas. Laporan baru akan muncul setelah standup disimpan atau sesi Live diterbitkan."} action={search ? <Button onClick={() => setSearch("")}>Hapus pencarian</Button> : snapshot && initialDate && initialDate !== date ? <Button onClick={() => selectDate(initialDate)}>Ke tanggal laporan</Button> : null} /></div>}
+    ) : <div className="rounded-2xl border border-dashed border-line bg-white py-8"><EmptyState icon={<FileText size={20} />} title={multiDay ? "Belum ada catatan pada minggu ini" : "Belum ada cerita di hari ini"} description={snapshot ? `Snapshot ini memuat laporan ${formatMediumDate(date)}.` : "Pilih tanggal lain di atas. Laporan baru akan muncul setelah standup disimpan atau sesi Live diterbitkan."} action={snapshot && initialDate && initialDate !== date ? <Button onClick={() => selectDate(initialDate)}>Ke tanggal laporan</Button> : null} /></div>}
     <DivisionReportModal report={divisionReport} onClose={() => setDivisionReport(null)} />
     <Modal
       open={shareOpen}
