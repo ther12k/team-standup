@@ -50,8 +50,10 @@ export const shareCreateSchema = z
 
 /**
  * Saring state workspace agar tautan berbagi hanya memuat entri pada rentang
- * yang dibagikan — anggota & tugas lain tidak ikut bocor. Laporan mengikuti
- * data terkini setiap kali tautan dibuka (bukan snapshot beku).
+ * yang dibagikan — anggota & tugas lain tidak ikut bocor. Laporan divisi
+ * referensi ikut untuk rentang jendela (chip "Divisi lain" tetap tampil),
+ * riwayat impor tidak. Laporan mengikuti data terkini setiap kali tautan
+ * dibuka (bukan snapshot beku).
  */
 export function filterStateForRange(state: AppState, start: string, end: string): AppState {
   const entries = state.entries.filter(entry => entry.date >= start && entry.date <= end);
@@ -69,5 +71,6 @@ export function filterStateForRange(state: AppState, start: string, end: string)
     entries,
     imports: [],
     holidays: state.holidays,
+    divisionReports: (state.divisionReports ?? []).filter(report => report.date >= start && report.date <= end),
   };
 }

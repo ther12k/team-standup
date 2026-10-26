@@ -25,6 +25,10 @@ function makeState(): AppState {
       },
     ],
     imports: [{ id: "im-1", reportDate: null, importedAt: "2026-10-22T00:00:00Z", originalText: "x", fingerprint: "0".repeat(64), memberNames: [], activityCount: 1 }],
+    divisionReports: [
+      { id: "dv-1", division: "RnD", date: "2026-10-22", text: "RnD laporan" },
+      { id: "dv-2", division: "Product", date: "2026-10-01", text: "Product lama" },
+    ],
   };
 }
 
@@ -35,6 +39,8 @@ test("filterStateForRange: hanya entri dan tugas terkait rentang yang ikut", () 
   assert.deepEqual(filtered.imports, []);
   // Anggota tetap utuh (diperlukan untuk nama pelapor), imports dibuang.
   assert.equal(filtered.members.length, 2);
+  // Laporan divisi hanya yang jatuh di rentang jendela.
+  assert.deepEqual(filtered.divisionReports?.map(r => r.id), ["dv-1"]);
 });
 
 test("filterStateForRange: batas rentang inklusif", () => {
