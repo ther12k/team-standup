@@ -26,6 +26,21 @@ export function shareWindowEnd(start: string, end: string): string {
   return end > weekEnd ? end : weekEnd;
 }
 
+/**
+ * Jendela pratinjau: tanggal di luar jendela berbagi tetap dikirim (±35 hari)
+ * agar kartu tanggal menunjukkan ada isinya dan isinya bisa dikaburkan —
+ * pengunjung diminta minta tautan baru untuk membukanya.
+ */
+export const SHARE_PREVIEW_DAYS = 35;
+
+export function sharePreviewStart(start: string): string {
+  return addDays(shareWindowStart(start), -SHARE_PREVIEW_DAYS);
+}
+
+export function sharePreviewEnd(start: string, end: string): string {
+  return addDays(shareWindowEnd(start, end), SHARE_PREVIEW_DAYS);
+}
+
 /** Panjang ID tautan berbagi: 8 karakter alfanumerik (62^8 ≈ 218 triliun kombinasi). */
 export const SHARE_ID_LENGTH = 8;
 const SHARE_ID_PATTERN = new RegExp(`^[A-Za-z0-9]{${SHARE_ID_LENGTH}}$`);

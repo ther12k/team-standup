@@ -74,7 +74,7 @@ export default function SharedReportPage() {
         />
         <footer className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-[#e2e8dc] pt-3 text-[10px] text-ink-soft/60">
           <span className="flex items-center gap-1.5">
-            <LockKeyhole size={12} /> Tautan berbagi baca-saja — hanya minggu yang dibagikan dan satu minggu sebelumnya yang terlihat.
+            <LockKeyhole size={12} /> Tautan berbagi baca-saja — tanggal di luar rentang yang dibagikan tampil terkunci; minta tautan baru untuk membukanya.
           </span>
           <span>Dibagikan {formatMediumDate(payload.share.createdAt)} · berlaku 180 hari <span className="mx-2">·</span> Dirangkum dengan Team Standup</span>
         </footer>

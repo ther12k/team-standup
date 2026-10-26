@@ -2,7 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, Check, CheckCheck, CircleCheck, ClipboardList, Download, FileText, LayoutGrid, List, MapPin, Share2 } from "lucide-react";
+import { AlertCircle, Check, CheckCheck, CircleCheck, ClipboardList, Download, FileText, LayoutGrid, List, Lock, MapPin, Share2 } from "lucide-react";
 import { useStoreOptional } from "@/lib/store";
 import { WeekTickets } from "@/components/reports/week-tickets";
 import { DivisionChip, DivisionReportModal, latestPerDivisionInRange } from "@/components/divisions/report-modal";
@@ -174,11 +174,7 @@ export function ReportExperience({
     const params = new URLSearchParams(window.location.search);
     const fromUrl = params.get("date");
     if (!isValidISODate(fromUrl)) return;
-    // Di jendela berbagi, tanggal URL di luar jendela diabaikan.
-    if (bounds && (fromUrl < bounds.min || fromUrl > bounds.max)) return;
     setDate(current => current || fromUrl);
-    // bounds stabil per halaman (jendela berbagi); cukup dibaca sekali.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -262,6 +258,9 @@ export function ReportExperience({
 
   if (loading || !report || !data || !date) return <PageLoading label="Menyiapkan laporan…" />;
 
+  // Tautan berbagi: rentang aktif di luar jendela yang dibagikan — isi tetap
+  // dirender tetapi dikaburkan, pembaca diminta minta tautan baru.
+  const locked = Boolean(bounds && range && (range.start < bounds.min || range.end > bounds.max));
   const groups = report.groups;
   return <>
     <WeekTickets date={date} today={today} onChange={selectDate} counts={counts} hasData={hasData} holidays={holidays} mode={mode} onModeChange={setMode} bounds={bounds} team={teamDivision ?? undefined} />
@@ -276,23 +275,25 @@ export function ReportExperience({
           </button>
         ))}
       </div>
-      <Button onClick={exportCsv} disabled={!report.lines.length} size="sm" className="text-xs"><Download size={14} /> Ekspor CSV</Button>
-      <CopyButton text={formatReportForWhatsApp(report)} label="Salin ringkasan" disabled={!report.lines.length} size="sm" className="text-xs" />
+      <Button onClick={exportCsv} disabled={!report.lines.length || locked} size="sm" className="text-xs"><Download size={14} /> Ekspor CSV</Button>
+      <CopyButton text={formatReportForWhatsApp(report)} label="Salin ringkasan" disabled={!report.lines.length || locked} size="sm" className="text-xs" />
       {!snapshot && !readOnly ? (
         <Button onClick={() => void createShareLink()} disabled={shareBusy} size="sm" className="text-xs">
           <Share2 size={14} /> {shareBusy ? "Menyiapkan…" : "Bagikan"}
         </Button>
       ) : null}
     </div>
-    {divisionChips.length > 0 ? (
-      <div className="no-print mb-3 flex flex-wrap items-center gap-1.5">
-        <span className="text-[10px] font-semibold uppercase tracking-[.08em] text-ink-soft/70">Divisi lain</span>
-        {divisionChips.map(item => (
-          <DivisionChip key={`${item.division}-${item.date}`} report={item} onClick={() => setDivisionReport(item)} />
-        ))}
-      </div>
-    ) : null}
-    {groups.length ? (
+    <div className="relative">
+      <div className={cn(locked && "pointer-events-none select-none blur-sm")}>
+        {divisionChips.length > 0 ? (
+          <div className="no-print mb-3 flex flex-wrap items-center gap-1.5">
+            <span className="text-[10px] font-semibold uppercase tracking-[.08em] text-ink-soft/70">Divisi lain</span>
+            {divisionChips.map(item => (
+              <DivisionChip key={`${item.division}-${item.date}`} report={item} onClick={() => setDivisionReport(item)} />
+            ))}
+          </div>
+        ) : null}
+        {groups.length ? (
       view === "list" && groupBy === "member" ? (
         // Daftar per tim: satu kartu per tim, anggota bertumpuk di dalam — ringkas tanpa margin antar anggota.
         (() => {
@@ -320,6 +321,24 @@ export function ReportExperience({
         </div>
       )
     ) : <div className="rounded-2xl border border-dashed border-line bg-white py-8"><EmptyState icon={<FileText size={20} />} title={multiDay ? "Belum ada catatan pada minggu ini" : "Belum ada cerita di hari ini"} description={snapshot ? `Snapshot ini memuat laporan ${formatMediumDate(date)}.` : "Pilih tanggal lain di atas. Laporan baru akan muncul setelah standup disimpan atau sesi Live diterbitkan."} action={snapshot && initialDate && initialDate !== date ? <Button onClick={() => selectDate(initialDate)}>Ke tanggal laporan</Button> : null} /></div>}
+      </div>
+      {locked ? (
+        <div className="absolute inset-0 z-10 grid place-items-center p-4">
+          <div className="max-w-sm rounded-2xl border border-line bg-white/95 p-5 text-center shadow-lg backdrop-blur">
+            <span className="mx-auto grid size-11 place-items-center rounded-2xl bg-slate-100 text-slate-500"><Lock size={20} /></span>
+            <h3 className="mt-3 text-[13.5px] font-semibold text-ink">Tanggal ini di luar rentang yang dibagikan</h3>
+            <p className="mt-1.5 text-[11.5px] leading-relaxed text-ink-soft">
+              Ada catatan pada tanggal ini, tetapi pemilik tautan hanya membagikan
+              {" "}{bounds ? `${formatMediumDate(bounds.min)} – ${formatMediumDate(bounds.max)}` : "rentang tertentu"}.
+              Minta tautan berbagi baru untuk membukanya.
+            </p>
+            {initialDate ? (
+              <Button variant="primary" className="mt-3.5" onClick={() => selectDate(initialDate)}>Kembali ke rentang terbagi</Button>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+    </div>
     <DivisionReportModal report={divisionReport} onClose={() => setDivisionReport(null)} />
     <Modal
       open={shareOpen}

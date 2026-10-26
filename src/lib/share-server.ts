@@ -3,7 +3,7 @@ import { eq, lt } from "drizzle-orm";
 import { db, pool } from "@/db";
 import { shares, users } from "@/db/schema";
 import { getWorkspace, WorkspaceError } from "@/lib/workspace-server";
-import { filterStateForRange, isValidShareId, shareCreateSchema, shareModeFor, shareWindowEnd, shareWindowStart, SHARE_ID_LENGTH } from "@/lib/share";
+import { filterStateForRange, isValidShareId, shareCreateSchema, shareModeFor, sharePreviewEnd, sharePreviewStart, shareWindowEnd, shareWindowStart, SHARE_ID_LENGTH } from "@/lib/share";
 
 /**
  * Tautan berbagi laporan tanpa login: pemilik login membuat tautan (ID pendek
@@ -128,8 +128,9 @@ export async function readShare(id: string, key: string, clientId = "unknown"): 
   }
   const { state } = await getWorkspace();
   const groupBy = row.groupBy === "project" ? "project" : "member";
-  // Kirim entri untuk rentang dibagikan + satu minggu sebelumnya — pembaca
-  // hanya bisa berpindah di dalam jendela itu (bar tanggal dibatasi).
+  // Kirim entri untuk jendela pratinjau (jendela berbagi ± 35 hari) — tanggal
+  // di luar jendela berbagi tampil terkunci di bar tanggal dan isinya
+  // dikaburkan oleh pembaca dengan ajakan minta tautan baru.
   const mode = shareModeFor(row.start, row.end);
   const windowStart = shareWindowStart(row.start);
   const windowEnd = shareWindowEnd(row.start, row.end);
@@ -137,6 +138,6 @@ export async function readShare(id: string, key: string, clientId = "unknown"): 
   const [creator] = await db.select({ division: users.division }).from(users).where(eq(users.id, row.createdBy)).limit(1);
   return {
     share: { start: row.start, end: row.end, groupBy, createdAt: row.createdAt.toISOString(), mode, windowStart, windowEnd, division: creator?.division ?? null },
-    state: filterStateForRange(state, windowStart, windowEnd),
+    state: filterStateForRange(state, sharePreviewStart(row.start), sharePreviewEnd(row.start, row.end)),
   };
 }

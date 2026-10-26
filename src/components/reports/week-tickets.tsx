@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Check } from "lucide-react";
+import { CalendarDays, CalendarRange, ChevronLeft, ChevronRight, Check, Lock } from "lucide-react";
 import { addDays, eachDate, endOfWeek, formatLongDate, formatMediumDate, formatMonthName, startOfWeek, weekdayIndex, isValidISODate } from "@/lib/date";
 import { isDateSelectable, latestWorkingDayOnOrBefore, nonWorkingReason } from "@/lib/workdays";
 import type { Holiday } from "@/lib/types";
@@ -12,7 +12,7 @@ export function WeekTickets({ date, today, onChange, counts, hasData, holidays, 
   /** Hari dengan data apa pun (termasuk yang hanya berisi keterangan cuti/izin) agar tetap bisa dibuka. */
   hasData?: Record<string, boolean>;
   mode?: "harian" | "mingguan"; onModeChange?: (mode: "harian" | "mingguan") => void;
-  /** Batas navigasi (tautan berbagi): tanggal di luar rentang ini tidak bisa dipilih. */
+  /** Jendela berbagi (tautan berbagi): tanggal di luarnya tampil terkunci — tetap bisa dibuka, isinya dikaburkan oleh laporan. */
   bounds?: { min: string; max: string };
   /** Divisi tim — ditampilkan di depan judul tanggal (mis. "M2MPD · Jumat, 23 Oktober 2026"). */
   team?: string;
@@ -48,39 +48,19 @@ export function WeekTickets({ date, today, onChange, counts, hasData, holidays, 
   const selectedWeekStart = startOfWeek(date);
 
   // Harian: rentang hari di sekitar tanggal terpilih. Mingguan: satu kartu per minggu
-  // (Senin sebagai jangkar), jumlah kartu menyesuaikan lebar bar. Dengan `bounds`
-  // (tautan berbagi) semuanya dipotong ke jendela yang dibagikan.
-  const clampDay = (value: string) => (!bounds ? value : value < bounds.min ? bounds.min : value > bounds.max ? bounds.max : value);
+  // (Senin sebagai jangkar), jumlah kartu menyesuaikan lebar bar. Pada tautan
+  // berbagi, tanggal di luar jendela tetap tampil (redup + ikon kunci) supaya
+  // pembaca tahu ada isinya, lalu diminta tautan baru saat membukanya.
+  const isLockedDay = (day: string) => Boolean(bounds && (day < bounds.min || day > bounds.max));
   const days = (() => {
     const before = Math.floor((capacity - 1) / 2);
-    let rangeStart = addDays(date, -before);
-    let rangeEnd = addDays(rangeStart, capacity - 1);
-    if (bounds) {
-      rangeStart = rangeStart < bounds.min ? bounds.min : rangeStart;
-      rangeEnd = rangeEnd > bounds.max ? bounds.max : rangeEnd;
-      // Saat terpotong di ujung, geser jendela agar kartu tetap terisi penuh.
-      if (rangeEnd === bounds.max) rangeStart = bounds.min > addDays(rangeEnd, -(capacity - 1)) ? bounds.min : addDays(rangeEnd, -(capacity - 1));
-      if (rangeEnd < rangeStart) rangeEnd = rangeStart;
-    }
-    return eachDate(rangeStart, rangeEnd);
+    const rangeStart = addDays(date, -before);
+    return eachDate(rangeStart, addDays(rangeStart, capacity - 1));
   })();
-  const weeks = (() => {
-    if (bounds) {
-      const list: string[] = [];
-      for (let w = startOfWeek(bounds.min); w <= bounds.max; w = addDays(w, 7)) list.push(w);
-      return list;
-    }
-    const weekCount = Math.max(5, Math.min(capacity - 2, 12));
-    return Array.from({ length: weekCount }, (_, i) => addDays(selectedWeekStart, -7 * (weekCount - 1 - i)));
-  })();
+  const weekCount = Math.max(5, Math.min(capacity - 2, 12));
+  const weeks = Array.from({ length: weekCount }, (_, i) => addDays(selectedWeekStart, -7 * (weekCount - 1 - i)));
   const weekTotal = (weekStart: string) =>
     eachDate(weekStart, addDays(weekStart, 6)).reduce((total, day) => total + (counts[day] ?? 0), 0);
-
-  // Panah melangkah satu minggu; pada mode terikat, langkah dipotong/dimatikan di batas.
-  const prevTarget = weekly ? addDays(selectedWeekStart, -7) : clampDay(addDays(date, -7));
-  const nextTarget = weekly ? addDays(selectedWeekStart, 7) : clampDay(addDays(date, 7));
-  const prevDisabled = bounds ? (weekly ? startOfWeek(prevTarget) < startOfWeek(bounds.min) : prevTarget === date) : false;
-  const nextDisabled = bounds ? (weekly ? startOfWeek(nextTarget) > startOfWeek(bounds.max) : nextTarget === date) : false;
 
   const firstLabel = weekly ? weeks[0] : days[0];
   const lastLabel = weekly ? addDays(weeks[weeks.length - 1], 6) : days[days.length - 1];
@@ -125,7 +105,7 @@ export function WeekTickets({ date, today, onChange, counts, hasData, holidays, 
               ))}
             </div>
           ) : null}
-          <Button variant="ghost" onClick={() => onChange(clampDay(latestWorkingDayOnOrBefore(today, holidays)))} className="h-8 px-2.5 text-xs">Hari ini</Button>
+          <Button variant="ghost" onClick={() => onChange(latestWorkingDayOnOrBefore(today, holidays))} className="h-8 px-2.5 text-xs">Hari ini</Button>
           <div className="relative">
             <Button onClick={() => { try { calendar.current?.showPicker(); } catch { calendar.current?.focus(); } }} className="h-8 px-3 text-xs"><CalendarDays size={14} /> Tanggal lain</Button>
             <input
@@ -133,9 +113,8 @@ export function WeekTickets({ date, today, onChange, counts, hasData, holidays, 
               type="date"
               value={date}
               onChange={e => {
-                let picked = e.target.value;
+                const picked = e.target.value;
                 if (!isValidISODate(picked)) return;
-                if (bounds) picked = clampDay(picked);
                 // Hari libur/akhir pekan hanya bisa dibuka bila ada catatannya.
                 if (!weekly && !isDateSelectable(picked, holidays, hasData?.[picked] ?? (counts[picked] ?? 0) > 0)) return;
                 onChange(picked);
@@ -145,8 +124,8 @@ export function WeekTickets({ date, today, onChange, counts, hasData, holidays, 
             />
           </div>
           <div className="ml-1 flex gap-1 border-l border-line pl-2">
-            <Button className="size-8 px-0" disabled={prevDisabled} onClick={() => onChange(prevTarget)} aria-label="Minggu sebelumnya"><ChevronLeft size={16} /></Button>
-            <Button className="size-8 px-0" disabled={nextDisabled} onClick={() => onChange(nextTarget)} aria-label="Minggu berikutnya"><ChevronRight size={16} /></Button>
+            <Button className="size-8 px-0" onClick={() => onChange(addDays(weekly ? selectedWeekStart : date, -7))} aria-label="Minggu sebelumnya"><ChevronLeft size={16} /></Button>
+            <Button className="size-8 px-0" onClick={() => onChange(addDays(weekly ? endOfWeek(date) : date, 7))} aria-label="Minggu berikutnya"><ChevronRight size={16} /></Button>
           </div>
         </div>
       </div>
@@ -158,13 +137,15 @@ export function WeekTickets({ date, today, onChange, counts, hasData, holidays, 
             const total = weekTotal(weekStart);
             const isThisWeek = today >= weekStart && today <= weekEnd;
             const sameMonth = weekStart.slice(5, 7) === weekEnd.slice(5, 7);
+            const locked = isLockedDay(weekStart);
             return <button
               key={weekStart}
               type="button"
               onClick={() => onChange(weekStart)}
               aria-pressed={selected}
-              aria-label={`Minggu ${formatMediumDate(weekStart)} – ${formatMediumDate(weekEnd)}${total ? `, ${total} catatan` : ""}`}
-              className={cn("date-ticket", selected && "is-selected", isThisWeek && "is-today")}
+              aria-label={`Minggu ${formatMediumDate(weekStart)} – ${formatMediumDate(weekEnd)}${total ? `, ${total} catatan` : ""}${locked ? " — di luar rentang berbagi" : ""}`}
+              title={locked ? "Di luar rentang berbagi — minta tautan baru untuk membuka" : undefined}
+              className={cn("date-ticket", selected && "is-selected", isThisWeek && "is-today", locked && "opacity-55 saturate-50")}
             >
               <span className="ticket-day">
                 {sameMonth
@@ -174,7 +155,7 @@ export function WeekTickets({ date, today, onChange, counts, hasData, holidays, 
               </span>
               <span className="ticket-date">{Number(weekStart.slice(8))}–{Number(weekEnd.slice(8))}</span>
               <span className="ticket-caption">
-                {selected ? <Check size={11} /> : <span className={cn("size-1.5 rounded-full", total ? "bg-brand" : "bg-slate-300")} />}
+                {locked ? <Lock size={11} className="text-slate-400" /> : selected ? <Check size={11} /> : <span className={cn("size-1.5 rounded-full", total ? "bg-brand" : "bg-slate-300")} />}
                 {total ? ` ${total} catatan` : " Belum ada"}
               </span>
             </button>;
@@ -187,6 +168,7 @@ export function WeekTickets({ date, today, onChange, counts, hasData, holidays, 
             const count = counts[day] ?? 0;
             const selectable = isDateSelectable(day, holidays, hasData?.[day] ?? count > 0);
             const reason = nonWorkingReason(holidays, day);
+            const locked = isLockedDay(day);
             return <button
               key={day}
               type="button"
@@ -194,13 +176,13 @@ export function WeekTickets({ date, today, onChange, counts, hasData, holidays, 
               onClick={() => onChange(day)}
               aria-pressed={selected}
               aria-disabled={!selectable}
-              aria-label={`${formatLongDate(day)}, ${count} anggota mengisi${!selectable ? ` — ${reason}` : ""}`}
-              title={!selectable ? `Bukan hari kerja: ${reason}` : undefined}
-              className={cn("date-ticket", selected && "is-selected", day === today && "is-today", !selectable && "is-nonworking")}
+              aria-label={`${formatLongDate(day)}, ${count} anggota mengisi${!selectable ? ` — ${reason}` : ""}${locked ? " — di luar rentang berbagi" : ""}`}
+              title={locked ? "Di luar rentang berbagi — minta tautan baru untuk membuka" : !selectable ? `Bukan hari kerja: ${reason}` : undefined}
+              className={cn("date-ticket", selected && "is-selected", day === today && "is-today", !selectable && "is-nonworking", locked && "opacity-55 saturate-50")}
             >
               <span className="ticket-day">{["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"][weekdayIndex(day)]}{day === today && <span className="ticket-today">Hari ini</span>}</span>
               <span className="ticket-date">{Number(day.slice(8))}</span>
-              <span className="ticket-caption">{!selectable ? "Libur" : <>{selected ? <Check size={11} /> : <span className={cn("size-1.5 rounded-full", count ? "bg-brand" : "bg-slate-300")} />}{count ? ` ${count} anggota` : " Belum ada"}</>}</span>
+              <span className="ticket-caption">{!selectable ? "Libur" : locked ? <><Lock size={11} className="text-slate-400" />{count ? ` ${count} anggota` : " Terkunci"}</> : <>{selected ? <Check size={11} /> : <span className={cn("size-1.5 rounded-full", count ? "bg-brand" : "bg-slate-300")} />}{count ? ` ${count} anggota` : " Belum ada"}</>}</span>
             </button>;
           })}
         </div>
