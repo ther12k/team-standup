@@ -8,6 +8,7 @@ import { AppLayout } from "./AppLayout";
 import StandupPage from "@/app/(app)/page";
 import TasksPage from "@/app/(app)/tugas/page";
 import LaporanPage from "@/app/(app)/laporan/page";
+import LaporanFeedPage from "@/app/(app)/laporan/feed/page";
 import ReportFocusPage from "@/app/(app)/laporan/lihat/page";
 import DivisiPage from "@/app/(app)/divisi/page";
 import ImporPage from "@/app/(app)/impor/page";
@@ -35,6 +36,14 @@ export function App() {
             </ToastProvider>
           }
         />
+        <Route
+          path="/laporan/:id/feed"
+          element={
+            <ToastProvider>
+              <SharedReportPage initialView="feed" />
+            </ToastProvider>
+          }
+        />
         {/* Jalur lama tautan berbagi — tetap hidup agar tautan yang sudah tersebar tidak mati. */}
         <Route
           path="/bagikan/:id"
@@ -44,12 +53,22 @@ export function App() {
             </ToastProvider>
           }
         />
+        <Route
+          path="/bagikan/:id/feed"
+          element={
+            <ToastProvider>
+              <SharedReportPage initialView="feed" />
+            </ToastProvider>
+          }
+        />
 
         {/* Halaman Terproteksi */}
         <Route element={<AppLayout />}>
           <Route path="/" element={<StandupPage />} />
           <Route path="/tugas" element={<TasksPage />} />
           <Route path="/laporan" element={<LaporanPage />} />
+          <Route path="/laporan/feed" element={<LaporanFeedPage />} />
+          <Route path="/feed" element={<LaporanFeedPage />} />
           <Route path="/laporan/lihat" element={<ReportFocusPage />} />
           <Route path="/divisi" element={<DivisiPage />} />
           <Route path="/impor" element={<ImporPage />} />

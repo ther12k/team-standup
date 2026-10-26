@@ -1,7 +1,7 @@
 "use client";
 
 import { Link } from "@/components/link";
-import { FileText, Maximize2 } from "lucide-react";
+import { AlignJustify, FileText, Maximize2 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useUser } from "@/components/user-context";
 import { ReportExperience } from "@/components/reports/report-experience";
@@ -26,12 +26,20 @@ export default function LaporanPage() {
             Rencana dan pekerjaan selesai seperti saat dicatat; chip Divisi lain memuat laporan referensi.
           </p>
         </div>
-        <Link
-          href="/laporan/lihat"
-          className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-teal-200 bg-brand-soft px-3 text-[12px] font-medium text-brand"
-        >
-          <Maximize2 className="size-3.5" /> Tampilan fokus
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/laporan/feed"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-line bg-white px-3 text-[12px] font-medium text-ink shadow-xs transition hover:bg-slate-50"
+          >
+            <AlignJustify className="size-3.5 text-brand" /> Linimasa / Feed
+          </Link>
+          <Link
+            href="/laporan/lihat"
+            className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-teal-200 bg-brand-soft px-3 text-[12px] font-medium text-brand"
+          >
+            <Maximize2 className="size-3.5" /> Tampilan fokus
+          </Link>
+        </div>
       </div>
       <ReportExperience data={state} today={today} teamDivision={user?.division ?? null} />
     </div>
