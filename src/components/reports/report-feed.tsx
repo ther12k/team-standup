@@ -41,13 +41,10 @@ const DIVISION_ACCENT: Record<string, string> = {
   Maintenance: "bg-amber-100 text-amber-700 border-amber-200",
 };
 
-function formatSingleMemberForCopy(
-  memberName: string,
-  role: string | undefined,
-  date: string,
-  entry: StandupEntry,
-): string {
-  const lines: string[] = [`*${memberName}*${role ? ` (${role})` : ""} — ${formatMediumDate(date)}`];
+type TeamMember = AppState["members"][number];
+
+function memberLines(memberName: string, role: string | undefined, entry: StandupEntry): string[] {
+  const lines: string[] = [`*${memberName}*${role ? ` (${role})` : ""}`];
   if (entry.plans.length) {
     lines.push("_Rencana:_");
     entry.plans.forEach(p => lines.push(`• ${p.text}`));
@@ -60,7 +57,131 @@ function formatSingleMemberForCopy(
     lines.push("_Kendala:_");
     entry.blockers.forEach(b => lines.push(`• ${b.text}`));
   }
+  return lines;
+}
+
+function formatDivisionDayForCopy(
+  division: string,
+  date: string,
+  entries: StandupEntry[],
+  memberMap: Map<string, TeamMember>,
+): string {
+  const lines: string[] = [`*${division} — Standup ${formatMediumDate(date)}*`];
+  entries.forEach(entry => {
+    const member = memberMap.get(entry.memberId);
+    const absence = entryAbsence(entry);
+    lines.push("");
+    if (absence) lines.push(`_${ABSENCE_LABEL[absence]}_`);
+    lines.push(...memberLines(member?.name ?? "Anggota tim", member?.role, entry));
+  });
   return lines.join("\n");
+}
+
+const SECTION_STYLE = {
+  plan: {
+    label: "Rencana Kerja",
+    title: "text-sky-800",
+    count: "text-sky-600",
+    chip: "bg-sky-100 text-sky-700",
+    box: "border-sky-100 bg-sky-50/40",
+    marker: "dot" as const,
+    Icon: ClipboardList,
+  },
+  done: {
+    label: "Pekerjaan Sebelumnya",
+    title: "text-brand-dark",
+    count: "text-brand",
+    chip: "bg-brand-soft text-brand",
+    box: "border-teal-100 bg-emerald-50/30",
+    marker: "check" as const,
+    Icon: CircleCheck,
+  },
+  blocker: {
+    label: "Kendala",
+    title: "text-amber-800",
+    count: "text-amber-700",
+    chip: "bg-amber-100 text-amber-700",
+    box: "border-amber-200 bg-amber-50/60",
+    marker: "dot" as const,
+    Icon: AlertCircle,
+  },
+};
+
+function ItemSection({ kind, items }: { kind: keyof typeof SECTION_STYLE; items: StandupItem[] }) {
+  if (items.length === 0) return null;
+  const section = SECTION_STYLE[kind];
+  const { Icon } = section;
+  return (
+    <div>
+      <div className={cn("mb-1.5 flex items-center gap-1.5 text-[11px] font-bold", section.title)}>
+        <span className={cn("grid size-4.5 place-items-center rounded", section.chip)}>
+          <Icon className="size-3" />
+        </span>
+        <span>{section.label}</span>
+        <span className={cn("text-[10px] font-normal", section.count)}>({items.length})</span>
+      </div>
+      <ul className={cn("space-y-1.5 rounded-xl border p-2.5", section.box)}>
+        {items.map((item, idx) => (
+          <li key={item.id || idx} className="flex items-start gap-2 text-[12px] leading-relaxed text-ink/90">
+            {section.marker === "check" ? (
+              <Check className="mt-0.5 size-3.5 shrink-0 text-brand" />
+            ) : (
+              <span className={cn("mt-1.5 size-1.5 shrink-0 rounded-full", kind === "plan" ? "bg-sky-500" : "bg-amber-500")} />
+            )}
+            <span className="flex-1">{item.text}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function MemberBlock({
+  entry,
+  member,
+  teamDivision,
+}: {
+  entry: StandupEntry;
+  member: TeamMember | undefined;
+  teamDivision: string;
+}) {
+  const absence = entryAbsence(entry);
+  const memberName = member?.name ?? "Anggota tim";
+  const postTime = entry.updatedAt ? formatClock(entry.updatedAt) : null;
+  return (
+    <div
+      className={cn(
+        "rounded-xl border p-3",
+        absence ? "border-slate-300 bg-slate-100/70" : "border-line/70 bg-[#fcfcf9]",
+      )}
+    >
+      <div className="flex flex-wrap items-center gap-2">
+        <Avatar name={memberName} accent={member?.accent ?? "teal"} size="sm" />
+        <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <h4 className="text-[12.5px] font-bold leading-tight text-ink">{memberName}</h4>
+          {absence && (
+            <span className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0 text-[9.5px] font-semibold uppercase tracking-wide text-slate-600">
+              {ABSENCE_LABEL[absence]}
+            </span>
+          )}
+          {member?.active === false && (
+            <span className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide text-slate-500">
+              Non-aktif
+            </span>
+          )}
+        </div>
+        <span className="ml-auto shrink-0 text-[10px] text-ink-soft">
+          {member?.role || "Tim Operasional"} · {teamDivision}
+          {postTime ? ` · ${postTime} WIB` : ""}
+        </span>
+      </div>
+      <div className="mt-2.5 space-y-2.5">
+        <ItemSection kind="plan" items={entry.plans} />
+        <ItemSection kind="done" items={entry.done} />
+        <ItemSection kind="blocker" items={entry.blockers} />
+      </div>
+    </div>
+  );
 }
 
 export function ReportFeed({
@@ -201,234 +322,197 @@ export function ReportFeed({
               {/* Day Container (with lock blur if outside bounds) */}
               <div className="relative">
                 <div className={cn("space-y-3", isLocked && "pointer-events-none select-none blur-sm")}>
-                  {/* Division update posts for this day (if any) */}
-                  {dayDivisions.map(divReport => (
-                    <article
-                      key={divReport.id}
-                      className="rounded-2xl border border-line/80 bg-[#fbfbf8] p-4 shadow-xs transition hover:border-[#cfd8cb]"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center gap-2.5">
-                          <span
-                            className={cn(
-                              "grid size-9 place-items-center rounded-xl border text-xs font-bold",
-                              DIVISION_ACCENT[divReport.division] || "bg-slate-100 text-slate-700 border-slate-200",
-                            )}
-                          >
-                            <Building2 className="size-4" />
-                          </span>
-                          <div>
-                            <div className="flex items-center gap-1.5">
-                              <h3 className="text-[13px] font-bold text-ink">
-                                {divReport.author || divReport.division}
-                              </h3>
+                  {(() => {
+                    // Susun kartu hari ini secara kronologis: laporan divisi lain + kartu tim.
+                    const latestUpdated = dayEntries.reduce(
+                      (acc, e) => (e.updatedAt && e.updatedAt > acc ? e.updatedAt : acc),
+                      "",
+                    );
+                    const latestTime = latestUpdated ? formatClock(latestUpdated) : null;
+
+                    const divisionPosts = dayDivisions.map(divReport => ({
+                      key: divReport.id,
+                      time: divReport.time ?? "",
+                      element: (
+                        <article
+                          key={divReport.id}
+                          className="rounded-2xl border border-line/80 bg-[#fbfbf8] p-4 shadow-xs transition hover:border-[#cfd8cb]"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-2.5">
                               <span
                                 className={cn(
-                                  "rounded-full border px-1.5 py-0.2 text-[9px] font-bold tracking-wide uppercase",
-                                  DIVISION_ACCENT[divReport.division] || "bg-slate-100 text-slate-700",
+                                  "grid size-9 place-items-center rounded-xl border text-xs font-bold",
+                                  DIVISION_ACCENT[divReport.division] || "bg-slate-100 text-slate-700 border-slate-200",
                                 )}
                               >
-                                {divReport.division}
+                                <Building2 className="size-4" />
                               </span>
-                            </div>
-                            <p className="text-[10.5px] text-ink-soft">
-                              Laporan referensi divisi lain {divReport.time ? `· ${divReport.time} WIB` : ""}
-                            </p>
-                          </div>
-                        </div>
-
-                        <Button
-                          size="xs"
-                          variant="ghost"
-                          onClick={() => setSelectedDivisionReport(divReport)}
-                          className="h-7 gap-1 text-[11px] text-brand"
-                        >
-                          Lihat detail <ExternalLink className="size-3" />
-                        </Button>
-                      </div>
-
-                      <div className="mt-3 rounded-xl border border-line bg-white p-3 font-sans text-[12px] leading-relaxed text-ink/90 whitespace-pre-wrap">
-                        {divReport.text}
-                      </div>
-                    </article>
-                  ))}
-
-                  {/* Team member posts for this day */}
-                  {dayEntries.length === 0 && dayDivisions.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-line bg-white/70 py-6 text-center text-xs text-ink-soft">
-                      Belum ada catatan pada tanggal ini.
-                    </div>
-                  ) : (
-                    dayEntries.map(entry => {
-                      const member = memberMap.get(entry.memberId);
-                      const memberName = member?.name ?? "Anggota tim";
-                      const absence = entryAbsence(entry);
-                      const isAbsent = Boolean(absence);
-                      const postTime = entry.updatedAt ? formatClock(entry.updatedAt) : null;
-                      const copyText = formatSingleMemberForCopy(memberName, member?.role, date, entry);
-
-                      return (
-                        <article
-                          key={entry.id}
-                          className={cn(
-                            "rounded-2xl border bg-white shadow-xs transition hover:shadow-sm",
-                            isAbsent
-                              ? "border-slate-300 bg-slate-100/70"
-                              : "border-line/90",
-                          )}
-                        >
-                          {/* Post Header: Facebook Style */}
-                          <div className="flex items-start justify-between gap-3 p-4 pb-3">
-                            <div className="flex items-center gap-3">
-                              <Avatar
-                                name={memberName}
-                                accent={member?.accent ?? "teal"}
-                                size="md"
-                              />
                               <div>
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <h3 className="text-[14px] font-bold leading-tight text-ink">
-                                    {memberName}
+                                <div className="flex items-center gap-1.5">
+                                  <h3 className="text-[13px] font-bold text-ink">
+                                    {divReport.author || divReport.division}
                                   </h3>
-                                  {absence && (
-                                    <span className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0 text-[9.5px] font-semibold uppercase tracking-wide text-slate-600">
-                                      {ABSENCE_LABEL[absence]}
-                                    </span>
-                                  )}
-                                  {member?.active === false && (
-                                    <span className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide text-slate-500">
-                                      Non-aktif
-                                    </span>
-                                  )}
+                                  <span
+                                    className={cn(
+                                      "rounded-full border px-1.5 py-0.2 text-[9px] font-bold tracking-wide uppercase",
+                                      DIVISION_ACCENT[divReport.division] || "bg-slate-100 text-slate-700",
+                                    )}
+                                  >
+                                    {divReport.division}
+                                  </span>
                                 </div>
-                                <p className="mt-0.5 text-[11px] text-ink-soft">
-                                  {member?.role || "Tim Operasional"} · {teamDivision}
-                                  {postTime ? ` · ${postTime} WIB` : ""}
+                                <p className="text-[10.5px] text-ink-soft">
+                                  Laporan referensi divisi lain {divReport.time ? `· ${divReport.time} WIB` : ""}
                                 </p>
                               </div>
                             </div>
 
-                            <button
-                              type="button"
-                              onClick={() => copyPost(entry.id, copyText)}
-                              title="Salin catatan anggota ini"
-                              aria-label={`Salin catatan ${memberName}`}
-                              className="rounded-lg p-1.5 text-ink-soft/60 transition hover:bg-slate-100 hover:text-ink"
+                            <Button
+                              size="xs"
+                              variant="ghost"
+                              onClick={() => setSelectedDivisionReport(divReport)}
+                              className="h-7 gap-1 text-[11px] text-brand"
                             >
-                              {copiedId === entry.id ? (
-                                <Check className="size-4 text-brand" />
-                              ) : (
-                                <Copy className="size-4" />
-                              )}
-                            </button>
+                              Lihat detail <ExternalLink className="size-3" />
+                            </Button>
                           </div>
 
-                          {/* Post Content */}
-                          <div className="px-4 pb-4 pt-1 space-y-3">
-                            {/* Rencana Kerja (Plans) */}
-                            {entry.plans.length > 0 && (
-                              <div>
-                                <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold text-sky-800">
-                                  <span className="grid size-4.5 place-items-center rounded bg-sky-100 text-sky-700">
-                                    <ClipboardList className="size-3" />
-                                  </span>
-                                  <span>Rencana Kerja</span>
-                                  <span className="text-[10px] font-normal text-sky-600">
-                                    ({entry.plans.length})
-                                  </span>
-                                </div>
-                                <ul className="space-y-1.5 rounded-xl border border-sky-100 bg-sky-50/40 p-2.5">
-                                  {entry.plans.map((item, idx) => (
-                                    <li
-                                      key={item.id || idx}
-                                      className="flex items-start gap-2 text-[12.5px] leading-relaxed text-ink/90"
-                                    >
-                                      <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-sky-500" />
-                                      <span className="flex-1">{item.text}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-
-                            {/* Pekerjaan Sebelumnya (Done) */}
-                            {entry.done.length > 0 && (
-                              <div>
-                                <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold text-brand-dark">
-                                  <span className="grid size-4.5 place-items-center rounded bg-brand-soft text-brand">
-                                    <CircleCheck className="size-3" />
-                                  </span>
-                                  <span>Pekerjaan Sebelumnya</span>
-                                  <span className="text-[10px] font-normal text-brand">
-                                    ({entry.done.length})
-                                  </span>
-                                </div>
-                                <ul className="space-y-1.5 rounded-xl border border-teal-100 bg-emerald-50/30 p-2.5">
-                                  {entry.done.map((item, idx) => (
-                                    <li
-                                      key={item.id || idx}
-                                      className="flex items-start gap-2 text-[12.5px] leading-relaxed text-ink/90"
-                                    >
-                                      <Check className="mt-0.5 size-3.5 shrink-0 text-brand" />
-                                      <span className="flex-1">{item.text}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-
-                            {/* Kendala (Blockers) */}
-                            {entry.blockers.length > 0 && (
-                              <div>
-                                <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold text-amber-800">
-                                  <span className="grid size-4.5 place-items-center rounded bg-amber-100 text-amber-700">
-                                    <AlertCircle className="size-3" />
-                                  </span>
-                                  <span>Kendala</span>
-                                  <span className="text-[10px] font-normal text-amber-700">
-                                    ({entry.blockers.length})
-                                  </span>
-                                </div>
-                                <ul className="space-y-1.5 rounded-xl border border-amber-200 bg-amber-50/60 p-2.5">
-                                  {entry.blockers.map((item, idx) => (
-                                    <li
-                                      key={item.id || idx}
-                                      className="flex items-start gap-2 text-[12.5px] leading-relaxed text-amber-950 font-medium"
-                                    >
-                                      <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-amber-500" />
-                                      <span className="flex-1">{item.text}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Post Footer Action Bar (Facebook-like) */}
-                          <div className="flex items-center justify-between border-t border-line/60 bg-[#faf9f5] px-4 py-2 text-[11px] text-ink-soft">
-                            <span className="flex items-center gap-1.5">
-                              {entry.source === "live" ? (
-                                <>
-                                  <Sparkles className="size-3 text-brand" /> Sesi Live
-                                </>
-                              ) : (
-                                <>
-                                  <MessageSquare className="size-3 text-emerald-600" /> WhatsApp Standup
-                                </>
-                              )}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => copyPost(entry.id, copyText)}
-                              className="inline-flex items-center gap-1 font-medium text-ink-soft transition hover:text-brand"
-                            >
-                              <Copy className="size-3" /> Salin catatan
-                            </button>
+                          <div className="mt-3 rounded-xl border border-line bg-white p-3 font-sans text-[12px] leading-relaxed text-ink/90 whitespace-pre-wrap">
+                            {divReport.text}
                           </div>
                         </article>
+                      ),
+                    }));
+
+                    const teamPosts =
+                      dayEntries.length > 0
+                        ? (() => {
+                            const copyId = `day-${date}`;
+                            const copyText = formatDivisionDayForCopy(teamDivision || "Tim", date, dayEntries, memberMap);
+                            const sourceCounts = dayEntries.reduce<Record<string, number>>((acc, e) => {
+                              acc[e.source] = (acc[e.source] ?? 0) + 1;
+                              return acc;
+                            }, {});
+                            const sourceKeys = Object.keys(sourceCounts);
+                            const sourceSummary =
+                              sourceKeys.length === 1 && sourceCounts.live
+                                ? "live"
+                                : sourceKeys.length === 1 && sourceCounts.import
+                                  ? "import"
+                                  : sourceKeys.length === 1 && sourceCounts.manual
+                                    ? "manual"
+                                    : "mixed";
+                            const mixedLabel = sourceKeys
+                              .map(
+                                source =>
+                                  `${sourceCounts[source]} ${source === "live" ? "Live" : source === "import" ? "WhatsApp" : "Manual"}`,
+                              )
+                              .join(" · ");
+
+                            return [
+                              {
+                                key: `team-${date}`,
+                                time: latestTime ?? "",
+                                element: (
+                                  <article key={`team-${date}`} className="rounded-2xl border border-line/90 bg-white shadow-xs transition hover:shadow-sm">
+                                    {/* Post Header: per divisi */}
+                                    <div className="flex items-start justify-between gap-3 p-4 pb-3">
+                                      <div className="flex items-center gap-3">
+                                        <span className="grid size-10 place-items-center rounded-2xl bg-brand-soft text-[11px] font-bold text-brand shadow-xs">
+                                          {(teamDivision || "TIM").slice(0, 3)}
+                                        </span>
+                                        <div>
+                                          <div className="flex flex-wrap items-center gap-1.5">
+                                            <h3 className="text-[14px] font-bold leading-tight text-ink">
+                                              {teamDivision || "Tim"}
+                                            </h3>
+                                            <span className="rounded-full border border-brand-200 bg-brand-soft px-1.5 py-0.2 text-[9px] font-bold uppercase tracking-wide text-brand">
+                                              Standup Tim
+                                            </span>
+                                          </div>
+                                          <p className="mt-0.5 text-[11px] text-ink-soft">
+                                            {dayEntries.length} anggota · {filledCount} mengisi
+                                            {absenceCount > 0 ? ` · ${absenceCount} izin/cuti` : ""}
+                                            {latestTime ? ` · diperbarui ${latestTime} WIB` : ""}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => copyPost(copyId, copyText)}
+                                        title="Salin laporan divisi hari ini"
+                                        aria-label={`Salin laporan ${teamDivision || "tim"} ${formatMediumDate(date)}`}
+                                        className="rounded-lg p-1.5 text-ink-soft/60 transition hover:bg-slate-100 hover:text-ink"
+                                      >
+                                        {copiedId === copyId ? (
+                                          <Check className="size-4 text-brand" />
+                                        ) : (
+                                          <Copy className="size-4" />
+                                        )}
+                                      </button>
+                                    </div>
+
+                                    {/* Post Content: blok per anggota di dalam kartu divisi */}
+                                    <div className="space-y-3 px-4 pb-4">
+                                      {dayEntries.map(entry => (
+                                        <MemberBlock
+                                          key={entry.id}
+                                          entry={entry}
+                                          member={memberMap.get(entry.memberId)}
+                                          teamDivision={teamDivision || "M2MPD"}
+                                        />
+                                      ))}
+                                    </div>
+
+                                    {/* Post Footer Action Bar (Facebook-like) */}
+                                    <div className="flex items-center justify-between gap-3 border-t border-line/60 bg-[#faf9f5] px-4 py-2 text-[11px] text-ink-soft">
+                                      <span className="flex items-center gap-1.5">
+                                        {sourceSummary === "live" ? (
+                                          <>
+                                            <Sparkles className="size-3 text-brand" /> Sesi Live
+                                          </>
+                                        ) : sourceSummary === "import" ? (
+                                          <>
+                                            <MessageSquare className="size-3 text-emerald-600" /> WhatsApp Standup
+                                          </>
+                                        ) : sourceSummary === "manual" ? (
+                                          <>
+                                            <ClipboardList className="size-3 text-ink-soft" /> Input manual
+                                          </>
+                                        ) : (
+                                          mixedLabel
+                                        )}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => copyPost(copyId, copyText)}
+                                        className="inline-flex items-center gap-1 font-medium text-ink-soft transition hover:text-brand"
+                                      >
+                                        <Copy className="size-3" /> Salin laporan divisi
+                                      </button>
+                                    </div>
+                                  </article>
+                                ),
+                              },
+                            ];
+                          })()
+                        : [];
+
+                    const posts = [...divisionPosts, ...teamPosts].sort((a, b) =>
+                      a.time < b.time ? -1 : a.time > b.time ? 1 : 0,
+                    );
+
+                    if (posts.length === 0) {
+                      return (
+                        <div className="rounded-2xl border border-dashed border-line bg-white/70 py-6 text-center text-xs text-ink-soft">
+                          Belum ada catatan pada tanggal ini.
+                        </div>
                       );
-                    })
-                  )}
+                    }
+                    return posts.map(post => post.element);
+                  })()}
                 </div>
 
                 {/* Lock Overlay when date is outside bounds */}
