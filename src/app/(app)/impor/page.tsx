@@ -78,6 +78,13 @@ const KIND_OPTIONS: { value: ItemKind; label: string }[] = [
   { value: "blocker", label: "Kendala" },
 ];
 
+/** Warna pil jenis aktivitas — selaras dengan chip editor standup/Live. */
+const KIND_STYLE: Record<ItemKind, string> = {
+  plan: "border-sky-200 bg-sky-50 text-sky-700",
+  done: "border-teal-200 bg-brand-soft text-brand-dark",
+  blocker: "border-amber-200 bg-amber-50 text-amber-700",
+};
+
 let localId = 0;
 function nextId(prefix: string): string {
   localId += 1;
@@ -475,6 +482,7 @@ export default function ImporPage() {
               onChange={(event) => setText(event.target.value)}
               placeholder={`💬 Report Daily Stand Up – 13/10/2026\n📅 Rencana Kerja Hari Ini\n👷 Bang Bima\n• review pull request\n👷 Bang Sinta\n• tulis pengujian otomatis`}
               rows={9}
+              spellCheck={false}
               aria-label="Teks laporan WhatsApp"
               className="mt-2 w-full resize-y rounded-xl border border-line bg-[#fbfaf6] p-3 font-mono text-[12px] leading-relaxed text-ink placeholder:text-slate-400 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20"
             />
@@ -583,10 +591,10 @@ export default function ImporPage() {
                           </div>
                         </div>
                         <div className="flex items-center gap-1.5">
-                          <Pill className="border-line bg-white text-ink-soft">
+                          <Pill className="whitespace-nowrap border-line bg-white text-ink-soft">
                             {draft.members.length} anggota
                           </Pill>
-                          <Pill className="border-line bg-white text-ink-soft">
+                          <Pill className="whitespace-nowrap border-line bg-white text-ink-soft">
                             {draft.members.reduce((total, member) => total + member.activities.length, 0)} aktivitas
                           </Pill>
                         </div>
@@ -623,67 +631,46 @@ export default function ImporPage() {
                       ) : null}
 
                       {draft.members.map((member) => (
-                        <div key={member.id} className="rounded-xl border border-line bg-white p-2.5">
-                          <div className="flex flex-wrap items-start justify-between gap-2">
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-1.5">
-                                <span className="inline-flex items-center gap-1 rounded bg-brand-soft px-1.5 py-0.5 text-[11px] font-semibold text-brand-dark">
-                                  <UserPlus className="h-3 w-3" /> {member.sourceName}
-                                </span>
-                                <ArrowRight className="h-3 w-3 text-ink-soft" />
-                                <Select
-                                  value={member.memberId}
-                                  onChange={(event) => {
-                                    const value = event.target.value;
-                                    updateMember(draft.id, member.id, (current) => ({
-                                      ...current,
-                                      memberId: value,
-                                      newName: value === NEW_MEMBER ? current.newName || current.sourceName : "",
-                                    }));
-                                  }}
-                                  aria-label={`Petakan ${member.sourceName} ke anggota`}
-                                  className="h-7 w-auto min-w-[170px] py-0 text-[11.5px]"
-                                >
-                                  <option value={NEW_MEMBER}>Buat anggota baru</option>
-                                  <option value={SKIP_MEMBER}>Lewati anggota ini</option>
-                                  <optgroup label="Anggota terdaftar">
-                                    {state.members.map((item) => (
-                                      <option key={item.id} value={item.id}>
-                                        {item.name}
-                                      </option>
-                                    ))}
-                                  </optgroup>
-                                </Select>
-                              </div>
-                              {member.memberId === NEW_MEMBER ? (
-                                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                                  <Input
-                                    value={member.newName}
-                                    onChange={(event) =>
-                                      updateMember(draft.id, member.id, (current) => ({ ...current, newName: event.target.value }))
-                                    }
-                                    placeholder="Nama anggota baru"
-                                    aria-label="Nama anggota baru"
-                                    className="h-7 w-40 py-0 text-[11.5px]"
-                                  />
-                                  <Input
-                                    value={member.newRole}
-                                    onChange={(event) =>
-                                      updateMember(draft.id, member.id, (current) => ({ ...current, newRole: event.target.value }))
-                                    }
-                                    placeholder="Peran"
-                                    aria-label="Peran anggota baru"
-                                    className="h-7 w-32 py-0 text-[11.5px]"
-                                  />
-                                </div>
-                              ) : null}
-                              {member.review ? (
-                                <p className="mt-1 flex items-start gap-1 text-[10.5px] text-amber-800">
-                                  <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" /> {member.review}
-                                </p>
-                              ) : null}
-                            </div>
-                            <div className="flex items-center gap-1">
+                        <div key={member.id} className="overflow-hidden rounded-xl border border-line bg-white">
+                          <div className="flex flex-wrap items-center gap-2 border-b border-line/70 bg-[#fcfbf8] px-2.5 py-2">
+                            <span className="text-[12px] font-semibold text-ink">{member.sourceName}</span>
+                            <ArrowRight className="h-3 w-3 shrink-0 text-ink-soft/60" />
+                            <Select
+                              value={member.memberId}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                updateMember(draft.id, member.id, (current) => ({
+                                  ...current,
+                                  memberId: value,
+                                  newName: value === NEW_MEMBER ? current.newName || current.sourceName : "",
+                                }));
+                              }}
+                              aria-label={`Petakan ${member.sourceName} ke anggota`}
+                              className={cn(
+                                "h-8 w-full py-0 text-[11.5px] font-medium sm:w-auto sm:min-w-[190px]",
+                                member.memberId === SKIP_MEMBER
+                                  ? "border-slate-200 bg-slate-50 text-slate-500"
+                                  : member.memberId === NEW_MEMBER
+                                    ? "border-amber-200 bg-amber-50 text-amber-800"
+                                    : "border-teal-200 bg-brand-soft text-brand-dark",
+                              )}
+                            >
+                              <option value={NEW_MEMBER}>Buat anggota baru…</option>
+                              <option value={SKIP_MEMBER}>Lewati anggota ini</option>
+                              <optgroup label="Anggota terdaftar">
+                                {state.members.map((item) => (
+                                  <option key={item.id} value={item.id}>
+                                    {item.name}
+                                  </option>
+                                ))}
+                              </optgroup>
+                            </Select>
+                            {member.memberId !== NEW_MEMBER && member.memberId !== SKIP_MEMBER ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-brand">
+                                <CheckCircle2 className="h-3 w-3" /> terpetakan
+                              </span>
+                            ) : null}
+                            <div className="ml-auto flex items-center gap-1">
                               <Button
                                 size="xs"
                                 variant="ghost"
@@ -714,94 +701,120 @@ export default function ImporPage() {
                               </Button>
                             </div>
                           </div>
+                          {member.memberId === NEW_MEMBER ? (
+                            <div className="flex flex-wrap gap-1.5 border-b border-line/70 px-2.5 py-2">
+                              <Input
+                                value={member.newName}
+                                onChange={(event) =>
+                                  updateMember(draft.id, member.id, (current) => ({ ...current, newName: event.target.value }))
+                                }
+                                placeholder="Nama anggota baru"
+                                aria-label="Nama anggota baru"
+                                className="h-8 w-44 py-0 text-[11.5px]"
+                              />
+                              <Input
+                                value={member.newRole}
+                                onChange={(event) =>
+                                  updateMember(draft.id, member.id, (current) => ({ ...current, newRole: event.target.value }))
+                                }
+                                placeholder="Peran"
+                                aria-label="Peran anggota baru"
+                                className="h-8 w-36 py-0 text-[11.5px]"
+                              />
+                            </div>
+                          ) : null}
+                          {member.review ? (
+                            <p className="flex items-start gap-1 border-b border-line/70 px-2.5 py-1.5 text-[10.5px] text-amber-800">
+                              <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" /> {member.review}
+                            </p>
+                          ) : null}
 
-                          <div className="mt-2 space-y-1.5">
+                          <div>
                             {member.activities.length === 0 ? (
-                              <p className="rounded-lg border border-dashed border-line px-2 py-1.5 text-[11px] text-ink-soft">
-                                Belum ada aktivitas untuk anggota ini.
-                              </p>
-                            ) : null}
-                            {member.activities.map((activity) => (
-                              <div key={activity.id} className="rounded-lg border border-line/80 bg-[#fcfbf8] p-1.5">
-                                <div className="flex items-start gap-1">
-                                  <Select
-                                    value={activity.kind}
-                                    onChange={(event) =>
-                                      updateMember(draft.id, member.id, (current) => ({
-                                        ...current,
-                                        activities: current.activities.map((item) =>
-                                          item.id === activity.id ? { ...item, kind: event.target.value as ItemKind } : item,
-                                        ),
-                                      }))
-                                    }
-                                    aria-label="Jenis aktivitas"
-                                    className="h-9 w-[96px] shrink-0 py-0 text-[11px] font-medium"
-                                  >
-                                    {KIND_OPTIONS.map((option) => (
-                                      <option key={option.value} value={option.value}>
-                                        {option.label}
-                                      </option>
-                                    ))}
-                                  </Select>
-                                  <Input
-                                    value={activity.text}
-                                    onChange={(event) =>
-                                      updateMember(draft.id, member.id, (current) => ({
-                                        ...current,
-                                        activities: current.activities.map((item) =>
-                                          item.id === activity.id ? { ...item, text: event.target.value } : item,
-                                        ),
-                                      }))
-                                    }
-                                    placeholder="Tulis aktivitas persis seperti laporan"
-                                    aria-label="Teks aktivitas"
-                                    className="h-9 flex-1 py-0 text-[12px]"
-                                  />
-                                  <button
-                                    type="button"
-                                    aria-label="Hapus aktivitas"
-                                    onClick={() =>
-                                      updateMember(draft.id, member.id, (current) => ({
-                                        ...current,
-                                        activities: current.activities.filter((item) => item.id !== activity.id),
-                                      }))
-                                    }
-                                    className="mt-0.5 rounded-lg p-1.5 text-ink-soft/70 transition-colors hover:bg-rose-50 hover:text-rose-600"
-                                  >
-                                    <Trash2 className="h-3.5 w-3.5" />
-                                  </button>
+                              <p className="px-3 py-2.5 text-[11px] text-ink-soft">Belum ada aktivitas untuk anggota ini.</p>
+                            ) : (
+                              member.activities.map((activity) => (
+                                <div key={activity.id} className="border-b border-line/50 px-2.5 py-1.5 transition-colors last:border-b-0 hover:bg-[#fcfbf8]">
+                                  <div className="flex items-center gap-1.5">
+                                    <Select
+                                      value={activity.kind}
+                                      onChange={(event) =>
+                                        updateMember(draft.id, member.id, (current) => ({
+                                          ...current,
+                                          activities: current.activities.map((item) =>
+                                            item.id === activity.id ? { ...item, kind: event.target.value as ItemKind } : item,
+                                          ),
+                                        }))
+                                      }
+                                      aria-label="Jenis aktivitas"
+                                      className={cn("h-8 w-[128px] shrink-0 py-0 text-[10.5px] font-semibold", KIND_STYLE[activity.kind])}
+                                    >
+                                      {KIND_OPTIONS.map((option) => (
+                                        <option key={option.value} value={option.value}>
+                                          {option.label}
+                                        </option>
+                                      ))}
+                                    </Select>
+                                    <Input
+                                      value={activity.text}
+                                      onChange={(event) =>
+                                        updateMember(draft.id, member.id, (current) => ({
+                                          ...current,
+                                          activities: current.activities.map((item) =>
+                                            item.id === activity.id ? { ...item, text: event.target.value } : item,
+                                          ),
+                                        }))
+                                      }
+                                      placeholder="Tulis aktivitas persis seperti laporan"
+                                      aria-label="Teks aktivitas"
+                                      className="h-8 min-w-0 flex-1 py-0 text-[12px]"
+                                    />
+                                    <button
+                                      type="button"
+                                      aria-label="Hapus aktivitas"
+                                      onClick={() =>
+                                        updateMember(draft.id, member.id, (current) => ({
+                                          ...current,
+                                          activities: current.activities.filter((item) => item.id !== activity.id),
+                                        }))
+                                      }
+                                      className="shrink-0 rounded-lg p-1.5 text-ink-soft/50 transition-colors hover:bg-rose-50 hover:text-rose-600"
+                                    >
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    </button>
+                                  </div>
+                                  <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                                    <Link2 className={cn("h-3 w-3 shrink-0", activity.taskId ? "text-brand" : "text-slate-300")} />
+                                    <Select
+                                      value={activity.taskId}
+                                      onChange={(event) =>
+                                        updateMember(draft.id, member.id, (current) => ({
+                                          ...current,
+                                          activities: current.activities.map((item) =>
+                                            item.id === activity.id ? { ...item, taskId: event.target.value } : item,
+                                          ),
+                                        }))
+                                      }
+                                      aria-label="Tautkan aktivitas ke tugas"
+                                      className="h-7 w-auto max-w-full border-0 bg-transparent py-0 text-[10.5px] text-ink-soft shadow-none"
+                                    >
+                                      <option value="">Tanpa tautan tugas</option>
+                                      <option value={CREATE_TASK}>+ Buat tugas baru (Belum Mulai)</option>
+                                      {state.tasks.map((task) => (
+                                        <option key={task.id} value={task.id}>
+                                          {task.title} · {statusMeta(task.status).label}
+                                        </option>
+                                      ))}
+                                    </Select>
+                                    {activity.review ? (
+                                      <span className="inline-flex items-center gap-1 text-[10px] text-amber-800">
+                                        <AlertTriangle className="h-2.5 w-2.5" /> {activity.review}
+                                      </span>
+                                    ) : null}
+                                  </div>
                                 </div>
-                                <div className="mt-0.5 flex flex-wrap items-center gap-1.5 px-1">
-                                  <Link2 className={cn("h-3 w-3 shrink-0", activity.taskId ? "text-brand" : "text-slate-300")} />
-                                  <Select
-                                    value={activity.taskId}
-                                    onChange={(event) =>
-                                      updateMember(draft.id, member.id, (current) => ({
-                                        ...current,
-                                        activities: current.activities.map((item) =>
-                                          item.id === activity.id ? { ...item, taskId: event.target.value } : item,
-                                        ),
-                                      }))
-                                    }
-                                    aria-label="Tautkan aktivitas ke tugas"
-                                    className="h-7 w-auto max-w-full border-0 bg-transparent py-0 text-[10.5px] text-ink-soft shadow-none"
-                                  >
-                                    <option value="">Tanpa tautan tugas</option>
-                                    <option value={CREATE_TASK}>+ Buat tugas baru (Belum Mulai)</option>
-                                    {state.tasks.map((task) => (
-                                      <option key={task.id} value={task.id}>
-                                        {task.title} · {statusMeta(task.status).label}
-                                      </option>
-                                    ))}
-                                  </Select>
-                                  {activity.review ? (
-                                    <span className="inline-flex items-center gap-1 text-[10px] text-amber-800">
-                                      <AlertTriangle className="h-2.5 w-2.5" /> {activity.review}
-                                    </span>
-                                  ) : null}
-                                </div>
-                              </div>
-                            ))}
+                              ))
+                            )}
                           </div>
                         </div>
                       ))}
