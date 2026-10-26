@@ -35,9 +35,9 @@ test("buat akun: memberId kosong/string kosong dinormalkan null, role default me
   assert.equal(parsed.role, "member");
 });
 
-test("divisi: default Engineering, bisa diisi, kosong ditolak", () => {
+test("divisi: default M2MPD, bisa diisi, kosong ditolak", () => {
   const def = createUserSchema.parse({ username: "budi", displayName: "Budi", password: "sandi123" });
-  assert.equal(def.division, "Engineering");
+  assert.equal(def.division, "M2MPD");
   const set = createUserSchema.parse({ username: "budi", displayName: "Budi", password: "sandi123", division: " RnD " });
   assert.equal(set.division, "RnD");
   assert.equal(createUserSchema.safeParse({ username: "budi", displayName: "Budi", password: "sandi123", division: "" }).success, false);

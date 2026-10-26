@@ -44,16 +44,16 @@ export function ensureAuthReady(): Promise<void> {
         display_name text not null,
         password_hash text not null,
         role text not null default 'member',
-        division text not null default 'Engineering',
+        division text not null default 'M2MPD',
         member_id text,
         active boolean not null default true,
         password_changed boolean not null default false,
         created_at timestamptz not null default now(),
         updated_at timestamptz not null default now()
       )`);
-    // Deploy lama: tambahkan kolom divisi tanpa migrasi manual (default Engineering
+    // Deploy lama: tambahkan kolom divisi tanpa migrasi manual (default M2MPD
     // untuk akun yang sudah ada).
-    await pool.query(`alter table standup_users add column if not exists division text not null default 'Engineering'`);
+    await pool.query(`alter table standup_users add column if not exists division text not null default 'M2MPD'`);
     await pool.query(`
       create table if not exists standup_sessions (
         token_hash text primary key,
@@ -72,7 +72,7 @@ export function ensureAuthReady(): Promise<void> {
       displayName: "Koordinator",
       passwordHash: await hashPassword(envPassword ?? "standup123"),
       role: "admin",
-      division: "Engineering",
+      division: "M2MPD",
       memberId: null,
       active: true,
       // Akun bawaan dengan sandi default wajib mengganti sandi (banner di /pengguna).

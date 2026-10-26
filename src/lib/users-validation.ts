@@ -37,7 +37,7 @@ export const createUserSchema = z.object({
   displayName: displayNameSchema,
   password: passwordSchema,
   role: z.enum(["admin", "member"]).default("member"),
-  division: divisionSchema.default("Engineering"),
+  division: divisionSchema.default("M2MPD"),
   memberId: z.string().trim().max(100).nullish().transform(value => value || null),
 });
 

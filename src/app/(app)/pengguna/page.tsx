@@ -18,10 +18,10 @@ type FormState = {
   active: boolean;
 };
 
-const EMPTY_FORM: FormState = { username: "", displayName: "", password: "", role: "member", division: "Engineering", memberId: "", active: true };
+const EMPTY_FORM: FormState = { username: "", displayName: "", password: "", role: "member", division: "M2MPD", memberId: "", active: true };
 
 /** Divisi yang dikenal di ruang kerja (bisa disesuaikan untuk tim kamu). */
-const DIVISIONS = ["Engineering", "Product", "Maintenance", "PM Project"] as const;
+const DIVISIONS = ["M2MPD", "RnD", "Product", "Maintenance", "PM Project"] as const;
 
 async function apiJson(url: string, init?: RequestInit): Promise<{ ok: boolean; status: number; error: string | null; body: unknown }> {
   try {
@@ -44,7 +44,7 @@ export default function PenggunaPage() {
   const [rows, setRows] = useState<SessionUser[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [profileName, setProfileName] = useState(me?.displayName ?? "");
-  const [profileDivision, setProfileDivision] = useState(me?.division ?? "Engineering");
+  const [profileDivision, setProfileDivision] = useState(me?.division ?? "M2MPD");
   const [profileMember, setProfileMember] = useState(me?.memberId ?? "");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -219,7 +219,7 @@ export default function PenggunaPage() {
           <div className="min-w-0 leading-tight">
             <p className="truncate text-sm font-semibold text-ink">{me?.displayName ?? "—"}</p>
             <p className="truncate text-[11px] text-ink-soft">
-              @{me?.username ?? "—"} · {isAdmin ? "Koordinator (admin)" : "Anggota"} · {me?.division ?? "Engineering"}
+              @{me?.username ?? "—"} · {isAdmin ? "Koordinator (admin)" : "Anggota"} · {me?.division ?? "M2MPD"}
             </p>
           </div>
         </div>

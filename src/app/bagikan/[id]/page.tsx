@@ -11,7 +11,7 @@ import { formatMediumDate, todayInJakarta } from "@/lib/date";
 import type { AppState } from "@/lib/types";
 
 type SharePayload = {
-  share: { start: string; end: string; groupBy: "member" | "project"; createdAt: string; mode: "day" | "week"; windowStart: string; windowEnd: string };
+  share: { start: string; end: string; groupBy: "member" | "project"; createdAt: string; mode: "day" | "week"; windowStart: string; windowEnd: string; division: string | null };
   state: AppState;
 };
 
@@ -70,6 +70,7 @@ export default function SharedReportPage() {
           initialMode={payload.share.mode === "week" ? "mingguan" : "harian"}
           readOnly
           bounds={{ min: payload.share.windowStart, max: payload.share.windowEnd }}
+          teamDivision={payload.share.division}
         />
         <footer className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-[#e2e8dc] pt-3 text-[10px] text-ink-soft/60">
           <span className="flex items-center gap-1.5">

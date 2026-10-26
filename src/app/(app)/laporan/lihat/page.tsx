@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { Globe2, LockKeyhole } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { useUser } from "@/components/user-context";
 import { ReportExperience } from "@/components/reports/report-experience";
 import { FocusBrand } from "@/components/focus-brand";
 import { Button, PageLoading } from "@/components/ui";
@@ -12,6 +13,7 @@ import type { PublishedReport } from "@/lib/live";
 
 export default function ReportFocusPage() {
   const { state, hydrated, today, storageError } = useStore();
+  const user = useUser();
   const [query, setQuery] = useState<{ room: string | null; key: string; date: string | null } | null>(null);
   const [remote, setRemote] = useState<PublishedReport | null>(null);
   const [error, setError] = useState("");
@@ -55,7 +57,7 @@ export default function ReportFocusPage() {
       {error ? <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6"><h2 className="font-semibold text-amber-900">Laporan belum bisa dibuka</h2><p className="mt-2 text-sm text-amber-800">{error}</p><Button className="mt-4" onClick={() => setAttempt(v => v + 1)}>Coba lagi</Button></div>
         : !hydrated || !query ? <PageLoading label="Menyiapkan laporan…" /> : <>
         {storageError && !query.room && <p role="alert" className="mb-4 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">{storageError}</p>}
-        <ReportExperience data={data} today={today} snapshot={snapshot} initialDate={initialDate} />
+        <ReportExperience data={data} today={today} snapshot={snapshot} initialDate={initialDate} teamDivision={user?.division ?? null} />
       </>}
       <footer className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-[#e2e8dc] pt-3 text-[10px] text-ink-soft/60"><span className="flex items-center gap-1.5"><LockKeyhole size={12} /> {query?.room ? "Tautan baca-saja; percakapan dan transkrip tidak dibagikan." : "Data tim tersinkron lintas perangkat melalui server; laporan Live terbit tetap punya tautan baca-saja sendiri."}</span><span>{remote ? `Diterbitkan ${formatClock(remote.publishedAt)} WIB` : "Ruang kerja tim"} <span className="mx-2">·</span> Dirangkum dengan Team Standup</span></footer>
     </main>

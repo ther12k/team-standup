@@ -138,6 +138,7 @@ export function ReportExperience({
   loading = false,
   readOnly = false,
   bounds,
+  teamDivision,
 }: {
   data: AppState | null;
   today: string;
@@ -151,6 +152,8 @@ export function ReportExperience({
   readOnly?: boolean;
   /** Batas navigasi tanggal (jendela tautan berbagi). */
   bounds?: { min: string; max: string };
+  /** Divisi tim — tampil di judul laporan bersama tanggal. */
+  teamDivision?: string | null;
 }) {
   // Di luar StoreProvider (halaman berbagi publik) libur diambil dari `data`;
   // di dalam aplikasi state workspace tetap sumbernya.
@@ -261,7 +264,7 @@ export function ReportExperience({
 
   const groups = report.groups;
   return <>
-    <WeekTickets date={date} today={today} onChange={selectDate} counts={counts} hasData={hasData} holidays={holidays} mode={mode} onModeChange={setMode} bounds={bounds} />
+    <WeekTickets date={date} today={today} onChange={selectDate} counts={counts} hasData={hasData} holidays={holidays} mode={mode} onModeChange={setMode} bounds={bounds} team={teamDivision ?? undefined} />
     <div className="mt-3 mb-3 flex flex-wrap items-center justify-end gap-2.5">
       <div className="flex gap-1 rounded-lg bg-[#eaf0e7] p-1" role="group" aria-label="Kelompok laporan">
         {([['member', 'Per anggota'], ['project', 'Per proyek']] as const).map(([value, label]) => <button key={value} onClick={() => setGroupBy(value)} aria-pressed={groupBy === value} className={cn("rounded-md px-3 py-1.5 text-[11px] transition", groupBy === value ? "bg-white font-medium text-ink shadow-sm" : "text-ink-soft")}>{label}</button>)}

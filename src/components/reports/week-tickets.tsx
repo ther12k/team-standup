@@ -7,13 +7,15 @@ import { isDateSelectable, latestWorkingDayOnOrBefore, nonWorkingReason } from "
 import type { Holiday } from "@/lib/types";
 import { Button, cn } from "@/components/ui";
 
-export function WeekTickets({ date, today, onChange, counts, hasData, holidays, mode, onModeChange, bounds }: {
+export function WeekTickets({ date, today, onChange, counts, hasData, holidays, mode, onModeChange, bounds, team }: {
   date: string; today: string; onChange: (date: string) => void; counts: Record<string, number>; holidays: Holiday[];
   /** Hari dengan data apa pun (termasuk yang hanya berisi keterangan cuti/izin) agar tetap bisa dibuka. */
   hasData?: Record<string, boolean>;
   mode?: "harian" | "mingguan"; onModeChange?: (mode: "harian" | "mingguan") => void;
   /** Batas navigasi (tautan berbagi): tanggal di luar rentang ini tidak bisa dipilih. */
   bounds?: { min: string; max: string };
+  /** Divisi tim — ditampilkan di depan judul tanggal (mis. "M2MPD · Jumat, 23 Oktober 2026"). */
+  team?: string;
 }) {
   const calendar = useRef<HTMLInputElement>(null);
   const track = useRef<HTMLDivElement>(null);
@@ -100,7 +102,7 @@ export function WeekTickets({ date, today, onChange, counts, hasData, holidays, 
     <section className="ticket-selector" aria-label="Pilih tanggal laporan">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-[13.5px] font-semibold tracking-tight text-ink">{heading}</h2>
+          <h2 className="text-[13.5px] font-semibold tracking-tight text-ink">{team ? `${team} · ` : ""}{heading}</h2>
           {todayInRange && <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[8.5px] font-semibold text-brand">HARI INI</span>}
           <span className="hidden text-[10px] text-ink-soft/70 sm:inline">{month}</span>
         </div>

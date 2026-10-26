@@ -1,7 +1,7 @@
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import { eq, lt } from "drizzle-orm";
 import { db, pool } from "@/db";
-import { shares } from "@/db/schema";
+import { shares, users } from "@/db/schema";
 import { getWorkspace, WorkspaceError } from "@/lib/workspace-server";
 import { filterStateForRange, isValidShareId, shareCreateSchema, shareModeFor, shareWindowEnd, shareWindowStart, SHARE_ID_LENGTH } from "@/lib/share";
 
@@ -109,7 +109,7 @@ export async function createShare(body: unknown, createdBy: string): Promise<{ i
 }
 
 export async function readShare(id: string, key: string, clientId = "unknown"): Promise<{
-  share: { start: string; end: string; groupBy: "member" | "project"; createdAt: string; mode: "day" | "week"; windowStart: string; windowEnd: string };
+  share: { start: string; end: string; groupBy: "member" | "project"; createdAt: string; mode: "day" | "week"; windowStart: string; windowEnd: string; division: string | null };
   state: ReturnType<typeof filterStateForRange>;
 }> {
   await ensureSharesTable();
@@ -133,8 +133,10 @@ export async function readShare(id: string, key: string, clientId = "unknown"): 
   const mode = shareModeFor(row.start, row.end);
   const windowStart = shareWindowStart(row.start);
   const windowEnd = shareWindowEnd(row.start, row.end);
+  // Divisi tim diambil dari akun pembuat tautan — tampil di judul laporan bersama tanggal.
+  const [creator] = await db.select({ division: users.division }).from(users).where(eq(users.id, row.createdBy)).limit(1);
   return {
-    share: { start: row.start, end: row.end, groupBy, createdAt: row.createdAt.toISOString(), mode, windowStart, windowEnd },
+    share: { start: row.start, end: row.end, groupBy, createdAt: row.createdAt.toISOString(), mode, windowStart, windowEnd, division: creator?.division ?? null },
     state: filterStateForRange(state, windowStart, windowEnd),
   };
 }

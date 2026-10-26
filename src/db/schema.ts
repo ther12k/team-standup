@@ -29,7 +29,7 @@ export const users = pgTable("standup_users", {
   passwordHash: text("password_hash").notNull(),
   role: text("role").notNull().default("member"),
   /** Divisi/departemen akun, mis. "Engineering", "Product". */
-  division: text("division").notNull().default("Engineering"),
+  division: text("division").notNull().default("M2MPD"),
   /** Terhubung ke anggota tim di workspace (id member); null untuk koordinator murni. */
   memberId: text("member_id"),
   active: boolean("active").notNull().default(true),

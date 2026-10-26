@@ -3,6 +3,7 @@
 import { Link } from "@/components/link";
 import { FileText, Maximize2 } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { useUser } from "@/components/user-context";
 import { ReportExperience } from "@/components/reports/report-experience";
 import { PageLoading } from "@/components/ui";
 
@@ -12,6 +13,7 @@ import { PageLoading } from "@/components/ui";
  */
 export default function LaporanPage() {
   const { state, hydrated, today } = useStore();
+  const user = useUser();
   if (!hydrated) return <PageLoading label="Menyiapkan laporan…" />;
   return (
     <div className="space-y-4">
@@ -31,7 +33,7 @@ export default function LaporanPage() {
           <Maximize2 className="size-3.5" /> Tampilan fokus
         </Link>
       </div>
-      <ReportExperience data={state} today={today} />
+      <ReportExperience data={state} today={today} teamDivision={user?.division ?? null} />
     </div>
   );
 }
