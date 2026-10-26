@@ -61,7 +61,7 @@ export function ReportCard({ group, data, groupBy, snapshot, showDate }: { group
     <div className="mb-3 flex items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-3">
         {groupBy === "member" ? <Avatar name={group.title} accent={member?.accent ?? "teal"} /> : <span className="grid size-10 place-items-center rounded-xl bg-brand-soft text-brand"><MapPin size={19} /></span>}
-        <div className="min-w-0"><h3 className="flex flex-wrap items-center gap-1.5 text-[14px] font-semibold text-ink">{group.title}{groupBy === "member" && member?.active === false && <span className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide text-slate-500">Non-aktif</span>}{absenceKind && <span className="rounded border border-orange-300 bg-orange-50 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide text-orange-700">{ABSENCE_LABEL[absenceKind]}</span>}</h3><p className="mt-0.5 text-[11px] text-ink-soft">{group.subtitle || `${new Set(group.lines.map(l => l.memberId)).size} anggota`}</p></div>
+        <div className="min-w-0"><h3 className="flex flex-wrap items-center gap-1.5 text-[14px] font-semibold text-ink">{group.title}{groupBy === "member" && member?.active === false && <span className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide text-slate-500">Non-aktif</span>}{absenceKind && <span className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide text-slate-600">{ABSENCE_LABEL[absenceKind]}</span>}</h3><p className="mt-0.5 text-[11px] text-ink-soft">{group.subtitle || `${new Set(group.lines.map(l => l.memberId)).size} anggota`}</p></div>
       </div>
       <span className="flex shrink-0 items-center gap-1 text-[10px] text-ink-soft/70"><CheckCheck size={13} /> {hasLive ? "Dari Live" : `${formatClock(dates.at(-1))} WIB`}</span>
     </div>
@@ -112,7 +112,7 @@ export function TeamCard({ title, memberCards, data, snapshot, showDate }: {
               <Avatar name={group.title} accent={member?.accent ?? "teal"} size="xs" />
               <p className="truncate text-[12px] font-semibold text-ink">{group.title}</p>
               {member?.active === false && <span className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide text-slate-500">Non-aktif</span>}
-              {absenceKind && <span className="rounded border border-orange-300 bg-orange-50 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide text-orange-700">{ABSENCE_LABEL[absenceKind]}</span>}
+              {absenceKind && <span className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0 text-[9px] font-semibold uppercase tracking-wide text-slate-600">{ABSENCE_LABEL[absenceKind]}</span>}
               <span className="ml-auto shrink-0 text-[9.5px] text-ink-soft/70">{formatClock(lastUpdated)} WIB</span>
             </div>
             <ActivitySections lines={group.lines} groupBy="member" snapshot={snapshot} showDate={showDate} />

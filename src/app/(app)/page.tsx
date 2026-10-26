@@ -288,7 +288,7 @@ export default function StandupPage() {
               <Users className="h-3 w-3" /> {totals.filled}/{activeMembers.length} mengisi
             </Pill>
             {absentees.length > 0 ? (
-              <Pill className="border-orange-200 bg-orange-50 text-orange-700">
+              <Pill className="border-slate-200 bg-slate-100 text-slate-600">
                 {absentees.length} cuti/sakit/izin
               </Pill>
             ) : null}
@@ -343,7 +343,7 @@ export default function StandupPage() {
                 <span
                   className={cn(
                     "h-1 w-1 rounded-full",
-                    isSelected ? "bg-white/80" : workingCount > 0 ? "bg-brand" : dayEntries.length > 0 ? "bg-orange-400" : "bg-slate-200",
+                    isSelected ? "bg-white/80" : workingCount > 0 ? "bg-brand" : dayEntries.length > 0 ? "bg-slate-400" : "bg-slate-200",
                   )}
                   aria-hidden
                 />

@@ -133,7 +133,7 @@ export function MemberEntryCard({
         "flex h-full flex-col p-3.5 transition-shadow sm:p-4",
         editing && "ring-2 ring-brand/30",
         !filled && !editing && "bg-white/70",
-        absence && !editing && "border-orange-200 bg-orange-50/60",
+        absence && !editing && "border-slate-300 bg-slate-100/70",
         inactive && !editing && "opacity-75",
       )}
     >
@@ -144,7 +144,7 @@ export function MemberEntryCard({
             <h3 className="truncate text-[13.5px] font-semibold leading-tight text-ink">{member.name}</h3>
             {absence ? (
               <span
-                className="rounded border border-orange-300 bg-orange-100 px-1.5 py-0 text-[9.5px] font-semibold uppercase tracking-wide text-orange-700"
+                className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0 text-[9.5px] font-semibold uppercase tracking-wide text-slate-600"
                 title={absence.note || undefined}
               >
                 {absence.label}
