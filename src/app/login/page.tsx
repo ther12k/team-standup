@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AlertTriangle, Loader2, LogIn } from "lucide-react";
+import { Link } from "@/components/link";
 import { Button, Field, Input } from "@/components/ui";
 
 export default function LoginPage() {
@@ -46,7 +47,9 @@ export default function LoginPage() {
     <main className="grid min-h-screen place-items-center bg-[#f6f5f0] px-4 py-10">
       <div className="w-full max-w-sm">
         <div className="mb-6">
-          <img src="/assets/teamstandup/brand/logo-horizontal-tagline.svg" alt="Team Standup" className="h-16 w-auto" />
+          <Link href="/" aria-label="Ke beranda Team Standup" className="inline-block rounded-lg transition-opacity hover:opacity-75">
+            <img src="/assets/teamstandup/brand/logo-horizontal-tagline.svg" alt="Team Standup" className="h-16 w-auto" />
+          </Link>
         </div>
 
         <form
