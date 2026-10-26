@@ -28,6 +28,15 @@ export function App() {
           }
         />
         <Route
+          path="/laporan/:id"
+          element={
+            <ToastProvider>
+              <SharedReportPage />
+            </ToastProvider>
+          }
+        />
+        {/* Jalur lama tautan berbagi — tetap hidup agar tautan yang sudah tersebar tidak mati. */}
+        <Route
           path="/bagikan/:id"
           element={
             <ToastProvider>

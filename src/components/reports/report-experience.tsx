@@ -125,7 +125,7 @@ export function TeamCard({ title, memberCards, data, snapshot, showDate }: {
 
 /**
  * Pengalaman laporan yang sama untuk menu Laporan (/laporan), tampilan fokus
- * (/laporan/lihat), dan pembaca tautan berbagi (/bagikan): bar tanggal, alat
+ * (/laporan/lihat), dan pembaca tautan berbagi (/laporan/:id): bar tanggal, alat
  * ringkas, chip divisi lain, daftar/kisi. `data` bisa berupa state workspace
  * (mode biasa), snapshot laporan Live, atau state tersaring tautan berbagi.
  */
@@ -246,7 +246,7 @@ export function ReportExperience({
       });
       const body = await response.json().catch(() => null);
       if (!response.ok) throw new Error(body?.error ?? "Gagal membuat tautan berbagi.");
-      setShareUrl(`${window.location.origin}/bagikan/${body.id}?k=${body.key}`);
+      setShareUrl(`${window.location.origin}/laporan/${body.id}?k=${body.key}`);
       setShareOpen(true);
     } catch (error) {
       setShareError(error instanceof Error ? error.message : "Gagal membuat tautan berbagi.");
