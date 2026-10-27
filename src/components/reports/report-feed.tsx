@@ -41,6 +41,12 @@ const DIVISION_ACCENT: Record<string, string> = {
   Maintenance: "bg-amber-100 text-amber-700 border-amber-200",
 };
 
+function normalizeTimeForSort(t: string): string {
+  const m = t.match(/^(\d{1,2})[.:](\d{2})/);
+  if (!m) return t;
+  return `${m[1].padStart(2, "0")}:${m[2]}`;
+}
+
 type TeamMember = AppState["members"][number];
 
 function memberLines(memberName: string, role: string | undefined, entry: StandupEntry): string[] {
@@ -501,7 +507,7 @@ export function ReportFeed({
                         : [];
 
                     const posts = [...divisionPosts, ...teamPosts].sort((a, b) =>
-                      a.time < b.time ? -1 : a.time > b.time ? 1 : 0,
+                      normalizeTimeForSort(a.time).localeCompare(normalizeTimeForSort(b.time)),
                     );
 
                     if (posts.length === 0) {
