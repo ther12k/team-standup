@@ -17,6 +17,7 @@ import {
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { createUserSchema, updateUserSchema } from "@/lib/users-validation";
 import { WorkspaceError } from "@/lib/workspace-server";
+import { memberDivision } from "@/lib/division";
 import type { AuthRole } from "@/lib/types";
 
 function getSessionToken(raw: unknown): string | undefined {
@@ -59,9 +60,14 @@ export const userRoutes = new Elysia({ prefix: "/api/users" })
       const { username, displayName, password, role, division, memberId } = parsed.data;
       if (memberId) {
         const [row] = await db.select({ state: workspace.state }).from(workspace).limit(1);
-        if (!row.state.members.some(member => member.id === memberId)) {
+        const linked = row.state.members.find(member => member.id === memberId);
+        if (!linked) {
           set.status = 400;
           return { error: "Anggota tim tidak ditemukan di workspace." };
+        }
+        if (memberDivision(linked) !== division) {
+          set.status = 400;
+          return { error: `Anggota "${linked.name}" berada di divisi ${memberDivision(linked)}, bukan ${division}.` };
         }
       }
 
@@ -138,7 +144,7 @@ export const userRoutes = new Elysia({ prefix: "/api/users" })
       const patch = parsed.data;
 
       if (me.role !== "admin") {
-        if (patch.role !== undefined || patch.active !== undefined) {
+        if (patch.role !== undefined || patch.active !== undefined || patch.division !== undefined || patch.memberId !== undefined) {
           set.status = 403;
           return { error: "Aksi ini hanya untuk koordinator." };
         }
@@ -151,11 +157,19 @@ export const userRoutes = new Elysia({ prefix: "/api/users" })
         }
       }
 
-      if (patch.memberId !== undefined && patch.memberId !== null) {
+      const nextDivision = patch.division ?? target.division;
+      const nextMemberId = patch.memberId !== undefined ? patch.memberId : target.memberId;
+
+      if (nextMemberId) {
         const [row] = await db.select({ state: workspace.state }).from(workspace).limit(1);
-        if (!row.state.members.some(member => member.id === patch.memberId)) {
+        const linked = row.state.members.find(member => member.id === nextMemberId);
+        if (!linked) {
           set.status = 400;
           return { error: "Anggota tim tidak ditemukan di workspace." };
+        }
+        if (memberDivision(linked) !== nextDivision) {
+          set.status = 400;
+          return { error: `Anggota "${linked.name}" berada di divisi ${memberDivision(linked)}, bukan ${nextDivision}.` };
         }
       }
 

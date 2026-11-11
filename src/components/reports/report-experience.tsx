@@ -192,6 +192,11 @@ export function ReportExperience({
     if (initialDate && isValidISODate(initialDate)) setDate(current => current || initialDate);
   }, [initialDate]);
 
+  // Reset tautan berbagi yang dicache saat rentang atau divisi berubah agar tidak tertukar.
+  useEffect(() => {
+    setShareUrl("");
+  }, [date, mode, teamDivision]);
+
   // Harian = tanggal terpilih saja; Mingguan = seluruh minggu yang memuat tanggal itu.
   const range = useMemo(() => {
     if (!date) return null;
@@ -236,7 +241,7 @@ export function ReportExperience({
     const response = await fetch("/api/shares", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ start: range.start, end: range.end, groupBy }),
+      body: JSON.stringify({ start: range.start, end: range.end, groupBy, division: teamDivision ?? undefined }),
     });
     const body = await response.json().catch(() => null);
     if (!response.ok) throw new Error(body?.error ?? "Gagal membuat tautan berbagi.");

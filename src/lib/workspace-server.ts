@@ -208,7 +208,8 @@ export async function resetWorkspace(): Promise<{ state: AppState; revision: num
 
 export async function saveWorkspace(input: { state: unknown; baseRevision: number }): Promise<{ state: AppState; revision: number }> {
   await ensureCoreTables();
-  const state = input.state as AppState;
+  if (!isWorkspaceState(input.state)) throw new WorkspaceError("Struktur data workspace tidak dikenali.", 400);
+  const state = input.state;
   return db.transaction(async (tx) => {
     const [row] = await tx.select().from(workspace).where(eq(workspace.id, WORKSPACE_ID)).limit(1).for("update");
     // Klien luring lama mungkin tidak membawa laporan divisi — jangan biarkan

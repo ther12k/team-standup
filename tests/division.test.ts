@@ -2,9 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { DEFAULT_DIVISION, memberDivision, scopedState } from "../src/lib/division";
 import { applyImport, type ImportDecision } from "../src/lib/import-apply";
-import { buildReport } from "../src/lib/report";
+import { buildReport, reportToCsv } from "../src/lib/report";
+import { formatReportForWhatsApp, formatStandupForWhatsApp } from "../src/lib/whatsapp";
 import { filterStateForRange } from "../src/lib/share";
-import type { AppState, Member } from "../src/lib/types";
+import type { AppState, Member, Task } from "../src/lib/types";
 
 const member = (id: string, name: string, division?: string): Member => ({
   id,
@@ -103,14 +104,56 @@ test("applyImport: tanpa divisi, nama cocok dengan anggota divisi bawaan", () =>
   assert.equal(state.members.length, 3);
 });
 
-test("filterStateForRange: tautan berbagi hanya memuat divisi pembuatnya", () => {
-  const shared = filterStateForRange(STATE, "2026-11-10", "2026-11-10", "Maintenance");
-  assert.deepEqual(shared.members.map((m) => m.id), ["m-hendra"]);
-  assert.deepEqual(shared.entries.map((e) => e.memberId), ["m-hendra"]); // entri Isra tidak ikut bocor
-  // Laporan divisi sendiri tidak tampil sebagai "divisi lain" bagi pembaca.
-  assert.deepEqual(shared.divisionReports?.map((r) => r.division), ["Product"]);
+test("scopedState: entri dan tugas disaring sesuai divisi anggota", () => {
+  const stateWithTasks: AppState = {
+    ...STATE,
+    tasks: [
+      { id: "t-unassigned", title: "Tugas Umum", assigneeIds: [], status: "belum", createdAt: "2026-11-10T00:00:00Z", statusHistory: [] },
+      { id: "t-m2m", title: "Tugas M2MPD", assigneeIds: ["m-isra"], status: "belum", createdAt: "2026-11-10T00:00:00Z", statusHistory: [] },
+      { id: "t-maint", title: "Tugas Maintenance", assigneeIds: ["m-hendra"], status: "belum", createdAt: "2026-11-10T00:00:00Z", statusHistory: [] },
+    ],
+  };
 
-  // Tanpa divisi (tautan lama) perilaku tidak berubah: semua anggota ikut.
-  const legacy = filterStateForRange(STATE, "2026-11-10", "2026-11-10");
-  assert.equal(legacy.members.length, 3);
+  const m2mpd = scopedState(stateWithTasks, "M2MPD");
+  assert.deepEqual(m2mpd.entries.map((e) => e.id), ["e1"]);
+  assert.deepEqual(m2mpd.tasks.map((t) => t.id), ["t-unassigned", "t-m2m"]);
+
+  const maint = scopedState(stateWithTasks, "Maintenance");
+  assert.deepEqual(maint.entries.map((e) => e.id), ["e2"]);
+  assert.deepEqual(maint.tasks.map((t) => t.id), ["t-unassigned", "t-maint"]);
+});
+
+test("laporan, ringkasan WA, dan ekspor CSV tidak membocorkan data divisi lain", () => {
+  const maintScoped = scopedState(STATE, "Maintenance");
+  const report = buildReport(maintScoped, "2026-11-10", "2026-11-10");
+
+  assert.equal(report.entryCount, 1);
+  assert.equal(report.plans, 1);
+  assert.equal(report.lines[0].text, "cek pendingin server");
+  assert.equal(report.lines[0].memberName, "Hendra");
+
+  const csv = reportToCsv(report);
+  assert.equal(csv.includes("susun API"), false);
+  assert.equal(csv.includes("Anggota tidak dikenal"), false);
+
+  const waRingkasan = formatReportForWhatsApp(report);
+  assert.equal(waRingkasan.includes("susun API"), false);
+  assert.equal(waRingkasan.includes("Anggota tidak dikenal"), false);
+
+  const waBoard = formatStandupForWhatsApp(maintScoped, "2026-11-10");
+  assert.equal(waBoard.includes("susun API"), false);
+});
+
+test("filterStateForRange: menyamarkan teks pada tanggal pratinjau yang terkunci", () => {
+  const shared = filterStateForRange(
+    STATE,
+    "2026-11-01",
+    "2026-11-20",
+    "Maintenance",
+    { start: "2026-11-15", end: "2026-11-20" }, // 2026-11-10 berada di luar jendela terbuka (terkunci)
+  );
+
+  assert.equal(shared.entries.length, 1);
+  assert.equal(shared.entries[0].plans[0].text, "Aktivitas terkunci");
+  assert.equal(shared.tasks.length, 0); // tugas pada tanggal terkunci tidak disertakan
 });

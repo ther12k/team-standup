@@ -12,9 +12,17 @@ export function memberDivision(member: Member): string {
 
 /**
  * State ruang kerja yang dipotong sesuai divisi: hanya anggota divisi itu yang
- * terlihat. Entri/tugas milik divisi lain tetap ada di data (tidak dihapus),
+ * terlihat. Entri disaring ke anggota divisi tersebut, dan tugas mencakup tugas
+ * tanpa penanggung jawab (milik umum) atau yang penanggung jawabnya ada di divisi ini.
+ * Entri/tugas milik divisi lain tetap ada di data (tidak dihapus),
  * hanya disembunyikan dari tampilan divisi ini.
  */
 export function scopedState(state: AppState, division: string): AppState {
-  return { ...state, members: state.members.filter(member => memberDivision(member) === division) };
+  const members = state.members.filter(member => memberDivision(member) === division);
+  const scopedMemberIds = new Set(members.map(member => member.id));
+  const entries = state.entries.filter(entry => scopedMemberIds.has(entry.memberId));
+  const tasks = state.tasks.filter(
+    task => task.assigneeIds.length === 0 || task.assigneeIds.some(id => scopedMemberIds.has(id)),
+  );
+  return { ...state, members, entries, tasks };
 }

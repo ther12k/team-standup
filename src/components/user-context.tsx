@@ -37,9 +37,10 @@ const FALLBACK_SCOPE: DivisionScope = { division: DEFAULT_DIVISION, canSwitch: f
 
 export function DivisionScopeProvider({ user, children }: { user: SessionUser; children: ReactNode }) {
   const isAdmin = user.role === "admin";
+  const userOverrideKey = `${DIVISION_OVERRIDE_KEY}:${user.id}`;
   const [override, setOverride] = useState<string | null>(() => {
     try {
-      return window.localStorage.getItem(DIVISION_OVERRIDE_KEY);
+      return window.localStorage.getItem(userOverrideKey);
     } catch {
       return null;
     }
@@ -48,11 +49,11 @@ export function DivisionScopeProvider({ user, children }: { user: SessionUser; c
   const setDivision = useCallback((division: string) => {
     setOverride(division);
     try {
-      window.localStorage.setItem(DIVISION_OVERRIDE_KEY, division);
+      window.localStorage.setItem(userOverrideKey, division);
     } catch {
       /* penyimpanan lokal tidak tersedia — override hanya untuk sesi ini */
     }
-  }, []);
+  }, [userOverrideKey]);
 
   const value = useMemo<DivisionScope>(
     () => ({

@@ -23,7 +23,7 @@ import {
   useToast,
 } from "@/components/ui";
 import { displayNameSchema, passwordSchema, usernameSchema } from "@/lib/users-validation";
-import { DIVISIONS, scopedState } from "@/lib/division";
+import { DIVISIONS, memberDivision, scopedState } from "@/lib/division";
 import { useDivisionScope } from "@/components/user-context";
 import type { SessionUser } from "@/lib/types";
 
@@ -126,8 +126,9 @@ export default function PenggunaPage() {
 
   useEffect(() => { void loadUsers(); }, [loadUsers]);
 
-  // Tautkan akun hanya ke anggota divisi yang dilihat.
-  const memberOptions = scopedState(state, scopeDivision).members;
+  // Tautkan akun hanya ke anggota divisi yang sesuai.
+  const profileMemberOptions = scopedState(state, profileDivision).members;
+  const formMemberOptions = scopedState(state, form.division).members;
 
   // Anggota yang sudah terhubung ke akun lain tidak bisa dipilih dua kali
   // (akun yang sedang diedit tidak dihitung supaya tetap bisa mempertahankan tautannya).
@@ -277,11 +278,11 @@ export default function PenggunaPage() {
   };
 
   const memberName = (memberId: string | null) =>
-    memberId ? (memberOptions.find(m => m.id === memberId)?.name ?? memberId) : "—";
+    memberId ? (state.members.find(m => m.id === memberId)?.name ?? memberId) : "—";
 
   const resetModal = () => { setShowCreate(false); setEditing(null); setFormError(null); setShowErrors(false); };
 
-  const renderMemberOptions = () => memberOptions.map(member => {
+  const renderFormMemberOptions = () => formMemberOptions.map(member => {
     const owner = memberOwner.get(member.id);
     return (
       <option key={member.id} value={member.id} disabled={Boolean(owner)}>
@@ -337,7 +338,18 @@ export default function PenggunaPage() {
             <Input id="profile-name" value={profileName} maxLength={80} onChange={event => setProfileName(event.target.value)} />
           </Field>
           <Field label="Divisi / departemen" htmlFor="profile-division" hint="Divisi asal akun kamu.">
-            <Select id="profile-division" value={profileDivision} onChange={event => setProfileDivision(event.target.value)}>
+            <Select
+              id="profile-division"
+              value={profileDivision}
+              onChange={event => {
+                const nextDiv = event.target.value;
+                setProfileDivision(nextDiv);
+                const currentLinked = state.members.find(m => m.id === profileMember);
+                if (currentLinked && memberDivision(currentLinked) !== nextDiv) {
+                  setProfileMember("");
+                }
+              }}
+            >
               {DIVISIONS.map(division => (
                 <option key={division} value={division}>{division}</option>
               ))}
@@ -346,7 +358,7 @@ export default function PenggunaPage() {
           <Field label="Anggota tim terkait" htmlFor="profile-member" hint="Dipakai sebagai identitasmu di standup & Live.">
             <Select id="profile-member" value={profileMember} onChange={event => setProfileMember(event.target.value)}>
               <option value="">— tidak terhubung —</option>
-              {memberOptions.map(member => (
+              {profileMemberOptions.map(member => (
                 <option key={member.id} value={member.id}>
                   {member.name}{member.active === false ? " (nonaktif)" : ""}
                 </option>
@@ -496,7 +508,16 @@ export default function PenggunaPage() {
           </div>
           <div className="grid gap-3.5 sm:grid-cols-2">
             <Field label="Divisi" htmlFor="new-division">
-              <Select id="new-division" value={form.division} onChange={event => setForm({ ...form, division: event.target.value })}>
+              <Select
+                id="new-division"
+                value={form.division}
+                onChange={event => {
+                  const nextDiv = event.target.value;
+                  const currentLinked = state.members.find(m => m.id === form.memberId);
+                  const resetMember = currentLinked && memberDivision(currentLinked) !== nextDiv;
+                  setForm({ ...form, division: nextDiv, memberId: resetMember ? "" : form.memberId });
+                }}
+              >
                 {DIVISIONS.map(division => (
                   <option key={division} value={division}>{division}</option>
                 ))}
@@ -505,7 +526,7 @@ export default function PenggunaPage() {
             <Field label="Anggota terkait" htmlFor="new-member" hint="Kartu standup yang diwakili akun ini.">
               <Select id="new-member" value={form.memberId} onChange={event => setForm({ ...form, memberId: event.target.value })}>
                 <option value="">— tidak terhubung —</option>
-                {renderMemberOptions()}
+                {renderFormMemberOptions()}
               </Select>
             </Field>
           </div>
@@ -594,7 +615,16 @@ export default function PenggunaPage() {
           </div>
           <div className="grid gap-3.5 sm:grid-cols-2">
             <Field label="Divisi" htmlFor="edit-division">
-              <Select id="edit-division" value={form.division} onChange={event => setForm({ ...form, division: event.target.value })}>
+              <Select
+                id="edit-division"
+                value={form.division}
+                onChange={event => {
+                  const nextDiv = event.target.value;
+                  const currentLinked = state.members.find(m => m.id === form.memberId);
+                  const resetMember = currentLinked && memberDivision(currentLinked) !== nextDiv;
+                  setForm({ ...form, division: nextDiv, memberId: resetMember ? "" : form.memberId });
+                }}
+              >
                 {DIVISIONS.map(division => (
                   <option key={division} value={division}>{division}</option>
                 ))}
@@ -603,7 +633,7 @@ export default function PenggunaPage() {
             <Field label="Anggota terkait" htmlFor="edit-member" hint="Kartu standup yang diwakili akun ini.">
               <Select id="edit-member" value={form.memberId} onChange={event => setForm({ ...form, memberId: event.target.value })}>
                 <option value="">— tidak terhubung —</option>
-                {renderMemberOptions()}
+                {renderFormMemberOptions()}
               </Select>
             </Field>
           </div>

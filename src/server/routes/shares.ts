@@ -10,7 +10,7 @@ export const shareRoutes = new Elysia({ prefix: "/api/shares" })
       const token = typeof raw === "string" ? raw : undefined;
       const user = await requireSessionUser(token);
       set.status = 201;
-      return await createShare(body, user.id);
+      return await createShare(body, user);
     } catch (e) {
       if (e instanceof WorkspaceError) {
         set.status = e.status;

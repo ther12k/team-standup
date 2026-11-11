@@ -228,6 +228,23 @@ export function AppShell({ children }: { children: ReactNode }) {
           </button>
         </div>
       </header>
+      {canSwitch ? (
+        <div className="sticky top-[53px] z-20 flex items-center justify-between gap-2 border-b border-line bg-white/95 px-4 py-1.5 backdrop-blur lg:hidden">
+          <label htmlFor="mobile-division-scope" className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
+            <Building2 className="h-3.5 w-3.5" /> Divisi
+          </label>
+          <Select
+            id="mobile-division-scope"
+            value={division}
+            onChange={(event) => setDivision(event.target.value)}
+            className="h-8 py-0 pr-7 text-xs w-auto max-w-[170px]"
+          >
+            {DIVISIONS.map((item) => (
+              <option key={item} value={item}>{item}</option>
+            ))}
+          </Select>
+        </div>
+      ) : null}
 
       <div className="lg:pl-[264px]">
         <main className="mx-auto w-full max-w-[1600px] px-4 pb-28 pt-4 sm:px-6 lg:px-8 lg:pb-12 lg:pt-7">

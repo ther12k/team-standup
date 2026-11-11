@@ -4,6 +4,7 @@ import { db, pool } from "@/db";
 import { shares, users } from "@/db/schema";
 import { getWorkspace, WorkspaceError } from "@/lib/workspace-server";
 import { filterStateForRange, isValidShareId, shareCreateSchema, shareModeFor, sharePreviewEnd, sharePreviewStart, shareWindowEnd, shareWindowStart, SHARE_ID_LENGTH } from "@/lib/share";
+import type { SessionUser } from "@/lib/types";
 
 /**
  * Tautan berbagi laporan tanpa login: pemilik login membuat tautan (ID pendek
@@ -64,9 +65,11 @@ function ensureSharesTable(): Promise<void> {
         "start" text not null,
         "end" text not null,
         group_by text not null default 'member',
+        division text,
         created_by text not null,
         created_at timestamptz not null default now()
       )`);
+    await pool.query(`alter table standup_shares add column if not exists division text`);
     // Tabel lama memakai tipe uuid; samakan ke text agar ID pendek bisa disimpan
     // sambil tetap menampung baris UUID yang sudah ada.
     const { rows } = await pool.query<{ data_type: string }>(
@@ -79,10 +82,16 @@ function ensureSharesTable(): Promise<void> {
   return tableReady;
 }
 
-export async function createShare(body: unknown, createdBy: string): Promise<{ id: string; key: string; expiresAt: string }> {
+export async function createShare(body: unknown, user: SessionUser | string): Promise<{ id: string; key: string; expiresAt: string }> {
   await ensureSharesTable();
   const parsed = shareCreateSchema.safeParse(body);
   if (!parsed.success) throw new WorkspaceError(parsed.error.issues[0]?.message ?? "Data berbagi tidak valid.");
+  
+  const createdBy = typeof user === "string" ? user : user.id;
+  const userDivision = typeof user === "string" ? undefined : user.division;
+  const isAdmin = typeof user === "string" ? false : user.role === "admin";
+  const targetDivision = isAdmin ? (parsed.data.division || userDivision) : userDivision;
+
   const key = randomToken(KEY_LENGTH);
   const createdAt = new Date();
   // Bersihkan tautan lebih dari 180 hari secara oportunistik.
@@ -97,6 +106,7 @@ export async function createShare(body: unknown, createdBy: string): Promise<{ i
         start: parsed.data.start,
         end: parsed.data.end,
         groupBy: parsed.data.groupBy,
+        division: targetDivision,
         createdBy,
         createdAt,
       }).returning({ id: shares.id });
@@ -134,12 +144,18 @@ export async function readShare(id: string, key: string, clientId = "unknown"): 
   const mode = shareModeFor(row.start, row.end);
   const windowStart = shareWindowStart(row.start);
   const windowEnd = shareWindowEnd(row.start, row.end);
-  // Divisi tim diambil dari akun pembuat tautan — tampil di judul laporan bersama tanggal
-  // dan membatasi anggota/entri yang dibagikan ke divisi pembuat saja.
+  // Divisi tim diambil dari kolom tautan berbagi (atau akun pembuat untuk data lama) —
+  // tampil di judul laporan bersama tanggal dan membatasi anggota/entri yang dibagikan.
   const [creator] = await db.select({ division: users.division }).from(users).where(eq(users.id, row.createdBy)).limit(1);
-  const creatorDivision = creator?.division ?? null;
+  const shareDivision = row.division ?? creator?.division ?? null;
   return {
-    share: { start: row.start, end: row.end, groupBy, createdAt: row.createdAt.toISOString(), mode, windowStart, windowEnd, division: creatorDivision },
-    state: filterStateForRange(state, sharePreviewStart(row.start), sharePreviewEnd(row.start, row.end), creatorDivision),
+    share: { start: row.start, end: row.end, groupBy, createdAt: row.createdAt.toISOString(), mode, windowStart, windowEnd, division: shareDivision },
+    state: filterStateForRange(
+      state,
+      sharePreviewStart(row.start),
+      sharePreviewEnd(row.start, row.end),
+      shareDivision,
+      { start: windowStart, end: windowEnd },
+    ),
   };
 }

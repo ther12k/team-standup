@@ -55,6 +55,7 @@ export const shares = pgTable("standup_shares", {
   start: text("start").notNull(),
   end: text("end").notNull(),
   groupBy: text("group_by").notNull().default("member"),
+  division: text("division"),
   createdBy: text("created_by").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

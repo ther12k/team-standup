@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { addDays, endOfWeek, isValidISODate, startOfWeek } from "@/lib/date";
 import { memberDivision } from "@/lib/division";
-import type { AppState } from "@/lib/types";
+import { ABSENCE_LABEL, entryAbsence } from "@/lib/absence";
+import type { AppState, StandupEntry, StandupItem } from "@/lib/types";
 
 /** Berbagi laporan: maksimal 62 hari per tautan agar payload tetap terkendali. */
 export const SHARE_MAX_DAYS = 62;
@@ -57,6 +58,7 @@ export const shareCreateSchema = z
     start: z.string().refine(isValidISODate, "Tanggal awal tidak valid."),
     end: z.string().refine(isValidISODate, "Tanggal akhir tidak valid."),
     groupBy: z.enum(["member", "project"]).default("member"),
+    division: z.string().trim().max(40).optional(),
   })
   .refine(value => value.start <= value.end, "Tanggal awal harus sebelum atau sama dengan tanggal akhir.")
   .refine(
@@ -73,20 +75,50 @@ export const shareCreateSchema = z
  *
  * Bila `division` diisi (divisi pembuat tautan), pembaca tanpa akun hanya melihat
  * anggota dan entri divisi itu — data divisi lain tidak ikut terbagikan.
+ *
+ * Bila `unlockedWindow` diberikan, entri di luar jendela terbuka (yaitu tanggal pratinjau yang terkunci)
+ * akan disamarkan isinya ("Aktivitas terkunci" / "Catatan cuti/izin (terkunci)")
+ * dan tugas terkait tidak disertakan agar catatan rahasia tidak bocor ke klien publik.
  */
-export function filterStateForRange(state: AppState, start: string, end: string, division?: string | null): AppState {
+export function filterStateForRange(
+  state: AppState,
+  start: string,
+  end: string,
+  division?: string | null,
+  unlockedWindow?: { start: string; end: string } | null,
+): AppState {
   const members = division ? state.members.filter(member => memberDivision(member) === division) : state.members;
   const memberIds = new Set(members.map(member => member.id));
-  const entries = state.entries.filter(
+  const rawEntries = state.entries.filter(
     entry => entry.date >= start && entry.date <= end && (!division || memberIds.has(entry.memberId)),
   );
+
   const taskIds = new Set<string>();
-  for (const entry of entries) {
-    for (const item of [...entry.plans, ...entry.done, ...entry.blockers]) {
-      if (item.taskId) taskIds.add(item.taskId);
+  for (const entry of rawEntries) {
+    const isUnlocked = !unlockedWindow || (entry.date >= unlockedWindow.start && entry.date <= unlockedWindow.end);
+    if (isUnlocked) {
+      for (const item of [...entry.plans, ...entry.done, ...entry.blockers]) {
+        if (item.taskId) taskIds.add(item.taskId);
+      }
     }
   }
+
+  const entries = rawEntries.map((entry): StandupEntry => {
+    const isUnlocked = !unlockedWindow || (entry.date >= unlockedWindow.start && entry.date <= unlockedWindow.end);
+    if (isUnlocked) return entry;
+    const kind = entryAbsence(entry);
+    const maskedText = kind ? `Catatan ${ABSENCE_LABEL[kind]} (terkunci)` : "Aktivitas terkunci";
+    const mask = (item: StandupItem): StandupItem => ({ id: item.id, text: maskedText });
+    return {
+      ...entry,
+      plans: entry.plans.map(mask),
+      done: entry.done.map(mask),
+      blockers: entry.blockers.map(mask),
+    };
+  });
   const tasks = state.tasks.filter(task => taskIds.has(task.id));
+
+  const reportRange = unlockedWindow ?? { start, end };
   return {
     version: 1,
     members,
@@ -95,7 +127,7 @@ export function filterStateForRange(state: AppState, start: string, end: string,
     imports: [],
     holidays: state.holidays,
     divisionReports: (state.divisionReports ?? []).filter(
-      report => report.date >= start && report.date <= end && (!division || report.division !== division),
+      report => report.date >= reportRange.start && report.date <= reportRange.end && (!division || report.division !== division),
     ),
   };
 }

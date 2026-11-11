@@ -99,11 +99,11 @@ export default function StandupPage() {
 
   const entryByMember = useMemo(() => {
     const map = new Map<string, StandupEntry>();
-    state.entries
+    scoped.entries
       .filter((entry) => entry.date === date && !isEntryEmpty(entry))
       .forEach((entry) => map.set(entry.memberId, entry));
     return map;
-  }, [state.entries, date]);
+  }, [scoped.entries, date]);
 
   const totals = useMemo(() => {
     const entries = Array.from(entryByMember.values());
@@ -140,12 +140,12 @@ export default function StandupPage() {
   const quickCandidates = useMemo(() => candidates.filter((candidate) => !candidate.alreadyPlanned).slice(0, 4), [candidates]);
   const weekDates = useMemo(() => (isValidISODate(date) ? eachDate(startOfWeek(date), endOfWeek(date)) : []), [date]);
   const projects = useMemo(
-    () => Array.from(new Set(state.tasks.map((task) => task.project).filter((value): value is string => Boolean(value?.trim())))).sort(),
-    [state.tasks],
+    () => Array.from(new Set(scoped.tasks.map((task) => task.project).filter((value): value is string => Boolean(value?.trim())))).sort(),
+    [scoped.tasks],
   );
 
   const dayHasData = (day: string) =>
-    state.entries.some((entry) => entry.date === day && entry.plans.length + entry.done.length + entry.blockers.length > 0);
+    scoped.entries.some((entry) => entry.date === day && entry.plans.length + entry.done.length + entry.blockers.length > 0);
   const daySelectable = (day: string) => isDateSelectable(day, holidays, dayHasData(day));
   const upcomingHolidays = holidays.filter((holiday) => holiday.date >= today).slice(0, 5);
 
@@ -311,7 +311,7 @@ export default function StandupPage() {
 
         <div className="mt-2.5 grid grid-cols-7 gap-1">
           {weekDates.map((day) => {
-            const dayEntries = state.entries.filter((entry) => entry.date === day && !isEntryEmpty(entry));
+            const dayEntries = scoped.entries.filter((entry) => entry.date === day && !isEntryEmpty(entry));
             // Titik hijau hanya menyala bila ada peserta yang bekerja (bukan sekadar keterangan cuti).
             const workingCount = dayEntries.filter((entry) => !entryAbsence(entry)).length;
             const isSelected = day === date;
