@@ -24,12 +24,16 @@ function getSessionToken(raw: unknown): string | undefined {
 }
 
 export const userRoutes = new Elysia({ prefix: "/api/users" })
-  .get("/", async ({ cookie, set }) => {
+  .get("/", async ({ cookie, set, query }) => {
     try {
       await ensureAuthReady();
       const token = getSessionToken(cookie[SESSION_COOKIE]?.value);
       await requireAdmin(token);
-      const rows = await db.select().from(users);
+      // Filter divisi opsional: halaman Pengguna mengikuti divisi yang dilihat admin.
+      const division = typeof query?.division === "string" ? query.division.trim() : "";
+      const rows = division
+        ? await db.select().from(users).where(eq(users.division, division))
+        : await db.select().from(users);
       return { users: rows.map(toSessionUser) };
     } catch (e) {
       if (e instanceof WorkspaceError) {

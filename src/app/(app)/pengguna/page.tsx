@@ -23,7 +23,8 @@ import {
   useToast,
 } from "@/components/ui";
 import { displayNameSchema, passwordSchema, usernameSchema } from "@/lib/users-validation";
-import { DIVISIONS, memberDivision } from "@/lib/division";
+import { DIVISIONS, scopedState } from "@/lib/division";
+import { useDivisionScope } from "@/components/user-context";
 import type { SessionUser } from "@/lib/types";
 
 type FormState = {
@@ -90,6 +91,7 @@ export default function PenggunaPage() {
   const isAdmin = me?.role === "admin";
   const { notify } = useToast();
   const { state } = useStore();
+  const { division: scopeDivision } = useDivisionScope();
 
   const [rows, setRows] = useState<SessionUser[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -109,9 +111,10 @@ export default function PenggunaPage() {
   const [showErrors, setShowErrors] = useState(false);
   const [created, setCreated] = useState<CreatedAccount | null>(null);
 
+  // Daftar akun mengikuti divisi yang dilihat — admin divisi lain hanya melihat divisinya.
   const loadUsers = useCallback(async () => {
     if (!isAdmin) return;
-    const { ok, body, error } = await apiJson("/api/users");
+    const { ok, body, error } = await apiJson(`/api/users?division=${encodeURIComponent(scopeDivision)}`);
     if (!ok) {
       setLoadError(error ?? "Gagal memuat daftar pengguna.");
       return;
@@ -119,11 +122,12 @@ export default function PenggunaPage() {
     const users = body && typeof body === "object" ? (body as Record<string, unknown>).users : null;
     setLoadError(null);
     setRows(Array.isArray(users) ? (users as SessionUser[]) : []);
-  }, [isAdmin]);
+  }, [isAdmin, scopeDivision]);
 
   useEffect(() => { void loadUsers(); }, [loadUsers]);
 
-  const memberOptions = state.members;
+  // Tautkan akun hanya ke anggota divisi yang dilihat.
+  const memberOptions = scopedState(state, scopeDivision).members;
 
   // Anggota yang sudah terhubung ke akun lain tidak bisa dipilih dua kali
   // (akun yang sedang diedit tidak dihitung supaya tetap bisa mempertahankan tautannya).
@@ -186,7 +190,8 @@ export default function PenggunaPage() {
   };
 
   const openCreate = () => {
-    setForm(EMPTY_FORM);
+    // Akun baru default masuk divisi yang sedang dilihat.
+    setForm({ ...EMPTY_FORM, division: scopeDivision });
     setFormError(null);
     setShowCreate(true);
   };
@@ -282,7 +287,6 @@ export default function PenggunaPage() {
       <option key={member.id} value={member.id} disabled={Boolean(owner)}>
         {member.name}
         {member.active === false ? " (nonaktif)" : ""}
-        {` · ${memberDivision(member)}`}
         {owner ? ` · terhubung @${owner.username}` : ""}
       </option>
     );
@@ -344,7 +348,7 @@ export default function PenggunaPage() {
               <option value="">— tidak terhubung —</option>
               {memberOptions.map(member => (
                 <option key={member.id} value={member.id}>
-                  {member.name}{member.active === false ? " (nonaktif)" : ""}{` · ${memberDivision(member)}`}
+                  {member.name}{member.active === false ? " (nonaktif)" : ""}
                 </option>
               ))}
             </Select>
@@ -385,7 +389,7 @@ export default function PenggunaPage() {
         <Card className="p-4 sm:p-5">
           <div className="mb-3 flex items-center justify-between gap-2">
             <p className="flex items-center gap-1.5 text-sm font-semibold text-ink">
-              <UserCog className="h-4 w-4 text-ink-soft" /> Semua pengguna
+              <UserCog className="h-4 w-4 text-ink-soft" /> Pengguna divisi {scopeDivision}
             </p>
             <Pill className="border-line bg-white text-ink-soft">{rows?.length ?? "…"} akun</Pill>
           </div>
