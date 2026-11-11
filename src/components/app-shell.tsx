@@ -24,6 +24,7 @@ import { useDivisionScope, useUser } from "@/components/user-context";
 import { Button, Modal, Select, cn, Avatar, useToast } from "@/components/ui";
 import { formatLongDate } from "@/lib/date";
 import { isEntryEmpty } from "@/lib/tasks";
+import { entryAbsence } from "@/lib/absence";
 import { DIVISIONS, scopedState } from "@/lib/division";
 
 const NAV = [
@@ -68,8 +69,14 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { division, canSwitch, setDivision } = useDivisionScope();
   const scopedMembers = scopedState(state, division).members;
   const scopedMemberIds = new Set(scopedMembers.map((member) => member.id));
+  // Sama seperti pill di papan standup: keterangan cuti/sakit/izin tidak
+  // dihitung "mengisi" agar pembilang tidak melebihi jumlah anggota aktif.
   const filledToday = state.entries.filter(
-    (entry) => entry.date === today && !isEntryEmpty(entry) && scopedMemberIds.has(entry.memberId),
+    (entry) =>
+      entry.date === today &&
+      !isEntryEmpty(entry) &&
+      !entryAbsence(entry) &&
+      scopedMemberIds.has(entry.memberId),
   ).length;
   const memberCount = scopedMembers.filter((member) => member.active !== false).length;
 
