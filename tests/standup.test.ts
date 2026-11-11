@@ -4,7 +4,7 @@ import { contentFingerprint, parseWhatsAppReports } from "../src/lib/import-pars
 import { applyImport, type ImportDecision } from "../src/lib/import-apply";
 import { buildReport, reportToCsv } from "../src/lib/report";
 import { carryCandidates, isEntryEmpty } from "../src/lib/tasks";
-import { formatStandupForWhatsApp } from "../src/lib/whatsapp";
+import { formatReportForWhatsApp, formatStandupForWhatsApp } from "../src/lib/whatsapp";
 import { parseDateFromText } from "../src/lib/date";
 import type { AppState, Member, Task } from "../src/lib/types";
 
@@ -274,6 +274,134 @@ test("parser membaca format tanggal lain dan tidak menebak tanggal", () => {
   assert.equal(parseDateFromText("13/10/2026"), "2026-10-13");
   assert.equal(parseDateFromText("13 Oktober 2026"), "2026-10-13");
   assert.equal(parseDateFromText("tanpa tanggal"), null);
+});
+
+function filledState(): AppState {
+  const state = baseState();
+  state.entries.push(
+    {
+      id: "e-bima",
+      date: "2026-10-13",
+      memberId: "m-bima",
+      plans: [{ id: "p1", text: "review pull request diskon" }],
+      done: [],
+      blockers: [{ id: "b1", text: "lingkungan staging kadang lambat saat deploy" }],
+      updatedAt: "2026-10-13T01:00:00.000Z",
+      source: "manual",
+    },
+    {
+      id: "e-sinta",
+      date: "2026-10-13",
+      memberId: "m-sinta",
+      plans: [{ id: "p2", text: "tulis pengujian otomatis" }],
+      done: [{ id: "d1", text: "perbaiki bug cetak struk" }],
+      blockers: [],
+      updatedAt: "2026-10-13T01:30:00.000Z",
+      source: "manual",
+    },
+  );
+  return state;
+}
+
+test("ringkasan WhatsApp memakai format ikon tim, urutan anggota, dan tautan di akhir", () => {
+  const state = filledState();
+  const report = buildReport(state, "2026-10-13", "2026-10-13");
+  const wa = formatReportForWhatsApp(report, {
+    link: "https://standup.halotec.my.id/laporan/g34J9j3q?k=oS1Ed8",
+    memberOrder: ["m-sinta", "m-bima"], // Sinta duluan — urutan daftar dipakai, bukan abjad.
+  });
+
+  assert.equal(
+    wa,
+    [
+      "💬 Report Daily Stand Up – 13/10/2026",
+      "",
+      "🗓️ Rencana Kerja Hari Ini",
+      "",
+      "👨‍💻 Sinta Rahmawati",
+      "* tulis pengujian otomatis",
+      "",
+      "👨‍💻 Bima Aditya",
+      "* review pull request diskon",
+      "",
+      "✅ Pekerjaan Selesai",
+      "",
+      "👨‍💻 Sinta Rahmawati",
+      "* perbaiki bug cetak struk",
+      "",
+      "⛔ Kendala",
+      "",
+      "👨‍💻 Bima Aditya",
+      "* lingkungan staging kadang lambat saat deploy",
+      "",
+      "https://standup.halotec.my.id/laporan/g34J9j3q?k=oS1Ed8",
+    ].join("\n"),
+  );
+});
+
+test("ringkasan mingguan menyebut rentang di judul dan tanggal per butir", () => {
+  const state = filledState();
+  state.entries.push({
+    id: "e-bima-2",
+    date: "2026-10-14",
+    memberId: "m-bima",
+    plans: [{ id: "p3", text: "rapikan dokumentasi api" }],
+    done: [],
+    blockers: [],
+    updatedAt: "2026-10-14T01:00:00.000Z",
+    source: "manual",
+  });
+
+  const report = buildReport(state, "2026-10-13", "2026-10-14");
+  const wa = formatReportForWhatsApp(report);
+  assert.match(wa, /💬 Report Weekly Stand Up – 13\/10\/2026 – 14\/10\/2026/);
+  assert.match(wa, /\* review pull request diskon \(13\/10\/2026\)/);
+  assert.match(wa, /\* rapikan dokumentasi api \(14\/10\/2026\)/);
+  // Tanpa tautan yang diberikan, tidak ada baris URL sama sekali.
+  assert.equal(wa.includes("https://"), false);
+});
+
+test("ringkasan kosong tetap menampilkan judul dan daftar belum mengisi", () => {
+  const report = buildReport(baseState(), "2026-10-13", "2026-10-13");
+  const wa = formatReportForWhatsApp(report);
+  assert.equal(
+    wa,
+    [
+      "💬 Report Daily Stand Up – 13/10/2026",
+      "",
+      "Belum ada catatan pada rentang ini.",
+      "",
+      "⏳ Belum mengisi: Bima Aditya, Sinta Rahmawati",
+    ].join("\n"),
+  );
+});
+
+test("ringkasan yang dibagikan bisa diimpor kembali dan tautannya tidak terbaca sebagai aktivitas", () => {
+  const state = filledState();
+  const report = buildReport(state, "2026-10-13", "2026-10-13");
+  const wa = formatReportForWhatsApp(report, {
+    link: "https://standup.halotec.my.id/laporan/g34J9j3q?k=oS1Ed8",
+    memberOrder: state.members.map((member) => member.id),
+  });
+
+  const parsed = parseWhatsAppReports(wa, MEMBERS);
+  assert.equal(parsed.reports.length, 1);
+  assert.equal(parsed.reports[0].reportDate, "2026-10-13");
+  const bima = parsed.reports[0].members.find((member) => member.matchedMemberId === "m-bima");
+  const sinta = parsed.reports[0].members.find((member) => member.matchedMemberId === "m-sinta");
+  assert.ok(bima && sinta);
+  assert.deepEqual(
+    bima.activities.map((activity) => `${activity.kind}:${activity.text}`),
+    ["plan:review pull request diskon", "blocker:lingkungan staging kadang lambat saat deploy"],
+  );
+  assert.deepEqual(
+    sinta.activities.map((activity) => `${activity.kind}:${activity.text}`),
+    ["plan:tulis pengujian otomatis", "done:perbaiki bug cetak struk"],
+  );
+  assert.equal(
+    parsed.reports[0].members.some((member) => member.activities.some((activity) => activity.text.includes("standup.halotec"))),
+    false,
+  );
 });
 
 test("standup kosong dianggap belum mengisi", () => {

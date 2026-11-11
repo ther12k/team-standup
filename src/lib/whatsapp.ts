@@ -1,7 +1,7 @@
 import type { AppState, StandupEntry } from "@/lib/types";
-import { formatLongDate, formatMediumDate } from "@/lib/date";
+import { formatLongDate, formatShortDate } from "@/lib/date";
 import { isEntryEmpty } from "@/lib/tasks";
-import type { ReportResult } from "@/lib/report";
+import type { ReportLine, ReportResult } from "@/lib/report";
 
 function section(title: string, items: string[]): string[] {
   if (items.length === 0) return [];
@@ -37,35 +37,72 @@ export function formatStandupForWhatsApp(state: AppState, date: string): string 
   return lines.join("\n");
 }
 
-export function formatReportForWhatsApp(report: ReportResult): string {
-  const lines: string[] = [
-    `*Laporan Standup — ${formatMediumDate(report.start)}${report.end !== report.start ? ` s.d. ${formatMediumDate(report.end)}` : ""}*`,
-    `_${report.plans} rencana • ${report.done} pekerjaan sebelumnya • ${report.blockers} kendala_`,
-  ];
+/**
+ * Judul bagian ringkasan ber-ikon. Label sengaja mengikuti format WhatsApp tim
+ * ("Rencana Kerja Hari Ini", "Pekerjaan Selesai", "Kendala", penanda 👨‍💻, dan
+ * bullet "*") supaya teks yang dibagikan bisa diimpor kembali lewat menu Impor.
+ */
+const REPORT_SECTIONS = [
+  { kind: "plan", label: "🗓️ Rencana Kerja Hari Ini" },
+  { kind: "done", label: "✅ Pekerjaan Selesai" },
+  { kind: "blocker", label: "⛔ Kendala" },
+] as const;
 
-  if (report.groups.length === 0) {
+export function formatReportForWhatsApp(
+  report: ReportResult,
+  options?: { link?: string; memberOrder?: string[] },
+): string {
+  const singleDay = report.start === report.end;
+  const dateLabel = singleDay
+    ? formatShortDate(report.start)
+    : `${formatShortDate(report.start)} – ${formatShortDate(report.end)}`;
+  const lines: string[] = [`💬 Report ${singleDay ? "Daily" : "Weekly"} Stand Up – ${dateLabel}`];
+
+  // Ringkasan selalu per anggota apa pun mode pengelompokan di layar; urutan
+  // mengikuti daftar anggota (memberOrder), tanpa itu urutan kemunculan pertama.
+  const order = new Map((options?.memberOrder ?? []).map((id, index) => [id, index] as const));
+  const members = new Map<string, { id: string; name: string; lines: ReportLine[] }>();
+  report.lines.forEach((line) => {
+    const bucket = members.get(line.memberId) ?? { id: line.memberId, name: line.memberName, lines: [] };
+    bucket.lines.push(line);
+    members.set(line.memberId, bucket);
+  });
+  const blocks = Array.from(members.values()).sort((a, b) => {
+    const rankA = order.get(a.id);
+    const rankB = order.get(b.id);
+    if (rankA !== undefined && rankB !== undefined) return rankA - rankB;
+    if (rankA !== undefined) return -1;
+    if (rankB !== undefined) return 1;
+    return 0; // urutan kemunculan dipertahankan (sort stabil)
+  });
+
+  if (blocks.length === 0) {
     lines.push("", "Belum ada catatan pada rentang ini.");
   }
 
-  report.groups.forEach((group) => {
-    lines.push("", `*${group.title}*${group.subtitle ? ` — ${group.subtitle}` : ""}`);
-    (["plan", "done", "blocker"] as const).forEach((kind) => {
-      const items = group.lines
-        .filter((line) => line.kind === kind)
-        .map((line) => {
-          const context = [
-            report.groupBy === "project" ? line.memberName.split(" ")[0] : null,
-            report.start === report.end ? null : formatMediumDate(line.date),
-          ].filter(Boolean);
-          return context.length > 0 ? `${line.text} (${context.join(", ")})` : line.text;
-        });
-      lines.push(...section(kind === "plan" ? "Rencana" : kind === "done" ? "Pekerjaan Sebelumnya" : "Kendala", items));
+  REPORT_SECTIONS.forEach(({ kind, label }) => {
+    const withItems = blocks
+      .map((block) => ({
+        name: block.name,
+        items: block.lines
+          .filter((line) => line.kind === kind)
+          .map((line) => `* ${line.text}${singleDay ? "" : ` (${formatShortDate(line.date)})`}`),
+      }))
+      .filter((block) => block.items.length > 0);
+    if (withItems.length === 0) return;
+    lines.push("", label, "");
+    withItems.forEach((block, index) => {
+      if (index > 0) lines.push("");
+      lines.push(`👨‍💻 ${block.name}`, ...block.items);
     });
   });
 
   if (report.missingMembers.length > 0) {
-    lines.push("", "*Belum mengisi standup*");
-    report.missingMembers.forEach((member) => lines.push(`• ${member.name} (${member.role})`));
+    lines.push("", `⏳ Belum mengisi: ${report.missingMembers.map((member) => member.name).join(", ")}`);
+  }
+
+  if (options?.link) {
+    lines.push("", options.link);
   }
 
   return lines.join("\n");

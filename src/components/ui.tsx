@@ -584,6 +584,7 @@ export function generatePassword(length = 12): string {
 
 export function CopyButton({
   text,
+  getText,
   label = "Salin",
   copiedLabel = "Tersalin",
   variant = "primary",
@@ -593,7 +594,10 @@ export function CopyButton({
   disabled,
   icon = true,
 }: {
-  text: string;
+  /** Teks statis untuk disalin; pakai ini atau `getText`. */
+  text?: string;
+  /** Teks disiapkan saat tombol diklik (boleh async, mis. membuat tautan berbagi). */
+  getText?: () => string | Promise<string>;
   label?: string;
   copiedLabel?: string;
   variant?: ButtonVariant;
@@ -619,7 +623,17 @@ export function CopyButton({
       className={className}
       disabled={disabled}
       onClick={async () => {
-        const ok = await copyToClipboard(text);
+        let value: string | null = null;
+        try {
+          value = getText ? await getText() : (text ?? null);
+        } catch {
+          value = null;
+        }
+        if (!value) {
+          notify("Gagal menyiapkan teks untuk disalin.", "error");
+          return;
+        }
+        const ok = await copyToClipboard(value);
         if (ok) {
           setCopied(true);
           onCopied?.();

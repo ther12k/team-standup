@@ -6,7 +6,7 @@ import { AlertCircle, Check, CheckCheck, CircleCheck, ClipboardList, Download, F
 import { useStoreOptional } from "@/lib/store";
 import { WeekTickets } from "@/components/reports/week-tickets";
 import { DivisionChip, DivisionReportModal, latestPerDivisionInRange } from "@/components/divisions/report-modal";
-import { Avatar, Button, CopyButton, EmptyState, Modal, PageLoading, StatusBadge, cn } from "@/components/ui";
+import { Avatar, Button, CopyButton, EmptyState, Modal, PageLoading, StatusBadge, cn, useToast } from "@/components/ui";
 import { buildReport, reportToCsv, type ReportGroup, type ReportGroupBy, type ReportLine } from "@/lib/report";
 import { ABSENCE_LABEL, entryAbsence } from "@/lib/absence";
 import { endOfWeek, formatClock, formatMediumDate, formatShortDate, isValidISODate, startOfWeek } from "@/lib/date";
@@ -158,6 +158,7 @@ export function ReportExperience({
   // Di luar StoreProvider (halaman berbagi publik) libur diambil dari `data`;
   // di dalam aplikasi state workspace tetap sumbernya.
   const store = useStoreOptional();
+  const { notify } = useToast();
   const holidays = data?.holidays ?? store?.state.holidays ?? [];
   const [date, setDate] = useState("");
   const [groupBy, setGroupBy] = useState<ReportGroupBy>("member");
@@ -230,19 +231,25 @@ export function ReportExperience({
   };
   // Bagikan: buat tautan ber-kunci untuk rentang aktif — pemegang tautan tanpa
   // akun hanya melihat entri rentang ini, mengikuti data terkini.
+  const createShare = async (): Promise<string> => {
+    if (!range) throw new Error("Rentang laporan belum siap.");
+    const response = await fetch("/api/shares", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ start: range.start, end: range.end, groupBy }),
+    });
+    const body = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(body?.error ?? "Gagal membuat tautan berbagi.");
+    const url = `${window.location.origin}/laporan/${body.id}?k=${body.key}`;
+    setShareUrl(url);
+    return url;
+  };
   const createShareLink = async () => {
     if (!range || shareBusy) return;
     setShareBusy(true);
     setShareError("");
     try {
-      const response = await fetch("/api/shares", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ start: range.start, end: range.end, groupBy }),
-      });
-      const body = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(body?.error ?? "Gagal membuat tautan berbagi.");
-      setShareUrl(`${window.location.origin}/laporan/${body.id}?k=${body.key}`);
+      await createShare();
       setShareOpen(true);
     } catch (error) {
       setShareError(error instanceof Error ? error.message : "Gagal membuat tautan berbagi.");
@@ -250,6 +257,26 @@ export function ReportExperience({
     } finally {
       setShareBusy(false);
     }
+  };
+  // Ringkasan WhatsApp: format ikon + tautan berbagi di akhir agar pesan siap
+  // ditempel ke grup. Tautan dibuat sekali lalu dipakai ulang; pada halaman
+  // publik URL halaman sendirilah tautannya, pada snapshot Live tidak ada tautan.
+  const buildRingkasan = async (): Promise<string> => {
+    if (!report || !data) return "";
+    const memberOrder = data.members.map((member) => member.id);
+    let link: string | undefined;
+    if (readOnly) {
+      const url = new URL(window.location.href);
+      const key = url.searchParams.get("k");
+      if (key) link = `${url.origin}${url.pathname}?k=${key}`;
+    } else if (!snapshot) {
+      try {
+        link = shareUrl || (shareBusy ? undefined : await createShare());
+      } catch {
+        notify("Tautan berbagi gagal dibuat — ringkasan disalin tanpa tautan.", "error");
+      }
+    }
+    return formatReportForWhatsApp(report, { link, memberOrder });
   };
   const divisionChips = useMemo(
     () => (snapshot || !range ? [] : latestPerDivisionInRange(data?.divisionReports ?? [], range.start, range.end)),
@@ -276,7 +303,7 @@ export function ReportExperience({
         ))}
       </div>
       <Button onClick={exportCsv} disabled={!report.lines.length || locked} size="sm" className="text-xs"><Download size={14} /> Ekspor CSV</Button>
-      <CopyButton text={formatReportForWhatsApp(report)} label="Salin ringkasan" disabled={!report.lines.length || locked} size="sm" className="text-xs" />
+      <CopyButton getText={buildRingkasan} label="Salin ringkasan" disabled={!report.lines.length || locked} size="sm" className="text-xs" />
       {!snapshot && !readOnly ? (
         <Button onClick={() => void createShareLink()} disabled={shareBusy} size="sm" className="text-xs">
           <Share2 size={14} /> {shareBusy ? "Menyiapkan…" : "Bagikan"}
@@ -355,7 +382,13 @@ export function ReportExperience({
           <div className="rounded-xl border border-line bg-[#fbfaf6] p-2.5">
             <p className="break-all font-mono text-[11px] leading-relaxed text-ink">{shareUrl}</p>
           </div>
-          <CopyButton text={shareUrl} label="Salin tautan" copiedLabel="Tautan tersalin" variant="primary" size="sm" />
+          <CopyButton
+            getText={buildRingkasan}
+            label="Salin ringkasan + tautan"
+            copiedLabel="Ringkasan tersalin"
+            size="sm"
+          />
+          <CopyButton text={shareUrl} label="Salin tautan" copiedLabel="Tautan tersalin" variant="secondary" size="sm" />
           <p className="text-[11px] leading-relaxed text-ink-soft">
             Tautan memuat kunci akses — siapa pun yang memegang tautan lengkap bisa membaca laporan rentang ini
             <span className="font-medium text-ink"> tanpa perlu login</span>. Isinya mengikuti data tim terkini dan

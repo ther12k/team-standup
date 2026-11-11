@@ -233,6 +233,10 @@ export function parseWhatsAppReports(text: string, members: Member[] = []): Pars
       const withoutEmoji = stripEmoji(raw);
       const isBullet = BULLET.test(withoutEmoji) || BULLET.test(raw);
 
+      // Baris yang hanya berisi tautan (mis. tautan berbagi di akhir ringkasan
+      // tim) bukan aktivitas — jangan ditempelkan pada butir sebelumnya.
+      if (!isBullet && /^(?:https?:\/\/|www\.)\S+$/i.test(withoutEmoji)) return;
+
       // 1. Penanda anggota eksplisit (👷 / 👨‍💻 / Nama:)
       const explicitMember = /👷|👨‍💻/u.test(raw) || /^(nama|anggota)\s*[:\-]/i.test(withoutEmoji);
       if (explicitMember && !isBullet) {
