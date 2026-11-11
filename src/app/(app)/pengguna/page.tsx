@@ -2,10 +2,27 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, Check, KeyRound, Loader2, Plus, ShieldCheck, UserCog } from "lucide-react";
+import { AlertTriangle, Check, KeyRound, Loader2, Plus, ShieldCheck, UserCog, Wand2 } from "lucide-react";
 import { useStore } from "@/lib/store";
 import { useUser } from "@/components/user-context";
-import { Avatar, Button, Card, Field, Input, Modal, Pill, Select, useToast } from "@/components/ui";
+import {
+  Avatar,
+  Button,
+  Card,
+  ChipButton,
+  CopyButton,
+  EmptyState,
+  Field,
+  Input,
+  Modal,
+  PasswordInput,
+  Pill,
+  Select,
+  Switch,
+  generatePassword,
+  useToast,
+} from "@/components/ui";
+import { displayNameSchema, passwordSchema, usernameSchema } from "@/lib/users-validation";
 import type { SessionUser } from "@/lib/types";
 
 type FormState = {
@@ -22,6 +39,41 @@ const EMPTY_FORM: FormState = { username: "", displayName: "", password: "", rol
 
 /** Divisi yang dikenal di ruang kerja (bisa disesuaikan untuk tim kamu). */
 const DIVISIONS = ["M2MPD", "RnD", "Product", "Maintenance", "PM Project"] as const;
+
+/** Ringkasan akun baru untuk modal "akun dibuat" — sandi awal hanya tampil sekali. */
+type CreatedAccount = { username: string; displayName: string; password: string; role: "admin" | "member"; division: string };
+
+const ROLE_HINT: Record<FormState["role"], string> = {
+  member: "Mengisi standup harian sendiri dan melihat laporan tim.",
+  admin: "Mengelola akun tim, impor laporan, dan pengaturan ruang kerja.",
+};
+
+/** Pesan WhatsApp siap kirim berisi tautan aplikasi + kredensial akun baru. */
+const whatsappCredentials = (account: CreatedAccount): string =>
+  [
+    "*Standup Harian — akun baru*",
+    `Aplikasi: ${window.location.origin}`,
+    `Nama pengguna: ${account.username}`,
+    `Kata sandi: ${account.password}`,
+    "Masuk lalu segera ganti kata sandi di menu Pengguna.",
+  ].join("\n");
+
+/** Pilihan peran sebagai dua chip (bukan dropdown) + keterangan peran aktif. */
+function RolePicker({ value, onChange, idPrefix }: { value: FormState["role"]; onChange: (role: FormState["role"]) => void; idPrefix: string }) {
+  return (
+    <div>
+      <div aria-label="Peran" className="grid grid-cols-2 gap-2">
+        <ChipButton id={`${idPrefix}-role-member`} active={value === "member"} onClick={() => onChange("member")} className="justify-center py-2">
+          Anggota
+        </ChipButton>
+        <ChipButton id={`${idPrefix}-role-admin`} active={value === "admin"} onClick={() => onChange("admin")} className="justify-center py-2">
+          <ShieldCheck className="h-3.5 w-3.5" /> Koordinator
+        </ChipButton>
+      </div>
+      <p className="mt-1.5 text-[11px] leading-snug text-ink-soft/80">{ROLE_HINT[value]}</p>
+    </div>
+  );
+}
 
 async function apiJson(url: string, init?: RequestInit): Promise<{ ok: boolean; status: number; error: string | null; body: unknown }> {
   try {
@@ -55,6 +107,9 @@ export default function PenggunaPage() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [formError, setFormError] = useState<string | null>(null);
   const [savingForm, setSavingForm] = useState(false);
+  /** False sampai percobaan kirim pertama — error inline tidak muncul saat masih mengetik. */
+  const [showErrors, setShowErrors] = useState(false);
+  const [created, setCreated] = useState<CreatedAccount | null>(null);
 
   const loadUsers = useCallback(async () => {
     if (!isAdmin) return;
@@ -71,6 +126,31 @@ export default function PenggunaPage() {
   useEffect(() => { void loadUsers(); }, [loadUsers]);
 
   const memberOptions = state.members;
+
+  // Anggota yang sudah terhubung ke akun lain tidak bisa dipilih dua kali
+  // (akun yang sedang diedit tidak dihitung supaya tetap bisa mempertahankan tautannya).
+  const memberOwner = new Map<string, SessionUser>();
+  rows?.forEach(user => {
+    if (user.memberId && user.id !== editing?.id) memberOwner.set(user.memberId, user);
+  });
+
+  const fieldError = (
+    value: string,
+    schema: typeof usernameSchema | typeof displayNameSchema | typeof passwordSchema,
+  ): string | undefined => {
+    if (!showErrors) return undefined;
+    const parsed = schema.safeParse(value);
+    return parsed.success ? undefined : (parsed.error.issues[0]?.message ?? "Isian tidak valid.");
+  };
+  const usernameError = fieldError(form.username, usernameSchema);
+  const displayNameError = fieldError(form.displayName, displayNameSchema);
+  const passwordError = fieldError(form.password, passwordSchema);
+  // Di modal ubah, kata sandi boleh kosong (tidak diganti) — error hanya untuk isian yang tidak valid.
+  const editPasswordError = form.password === "" ? undefined : passwordError;
+  const createValid =
+    usernameSchema.safeParse(form.username).success &&
+    displayNameSchema.safeParse(form.displayName).success &&
+    passwordSchema.safeParse(form.password).success;
 
   const saveProfile = async () => {
     if (!me || savingProfile) return;
@@ -129,6 +209,8 @@ export default function PenggunaPage() {
 
   const submitCreate = async () => {
     if (savingForm) return;
+    setShowErrors(true);
+    if (!createValid) return;
     setSavingForm(true);
     const { ok, error } = await apiJson("/api/users", {
       method: "POST",
@@ -147,13 +229,25 @@ export default function PenggunaPage() {
       setFormError(error ?? "Gagal membuat akun.");
       return;
     }
+    setCreated({
+      username: form.username,
+      displayName: form.displayName.trim(),
+      password: form.password,
+      role: form.role,
+      division: form.division,
+    });
     setShowCreate(false);
+    setShowErrors(false);
     notify(`Akun ${form.username} dibuat.`);
     await loadUsers();
   };
 
   const submitEdit = async () => {
     if (!editing || savingForm) return;
+    setShowErrors(true);
+    if (!displayNameSchema.safeParse(form.displayName).success) return;
+    // Kata sandi opsional saat mengedit: hanya divalidasi bila diisi.
+    if (form.password && !passwordSchema.safeParse(form.password).success) return;
     setSavingForm(true);
     const payload: Record<string, unknown> = {
       displayName: form.displayName.trim(),
@@ -182,7 +276,18 @@ export default function PenggunaPage() {
   const memberName = (memberId: string | null) =>
     memberId ? (memberOptions.find(m => m.id === memberId)?.name ?? memberId) : "—";
 
-  const resetModal = () => { setShowCreate(false); setEditing(null); setFormError(null); };
+  const resetModal = () => { setShowCreate(false); setEditing(null); setFormError(null); setShowErrors(false); };
+
+  const renderMemberOptions = () => memberOptions.map(member => {
+    const owner = memberOwner.get(member.id);
+    return (
+      <option key={member.id} value={member.id} disabled={Boolean(owner)}>
+        {member.name}
+        {member.active === false ? " (nonaktif)" : ""}
+        {owner ? ` · terhubung @${owner.username}` : ""}
+      </option>
+    );
+  });
 
   return (
     <div className="space-y-5">
@@ -294,6 +399,16 @@ export default function PenggunaPage() {
             <p className="flex items-center gap-2 py-4 text-xs text-ink-soft">
               <Loader2 className="h-3.5 w-3.5 animate-spin" /> Memuat daftar akun…
             </p>
+          ) : rows.length === 0 ? (
+            <EmptyState
+              title="Belum ada akun selain kamu"
+              description="Buat akun pertama untuk anggota tim supaya mereka bisa mengisi standup sendiri."
+              action={
+                <Button variant="primary" onClick={openCreate}>
+                  <Plus className="h-4 w-4" /> Tambah pengguna
+                </Button>
+              }
+            />
           ) : (
             <div className="-mx-1 overflow-x-auto px-1">
               <table className="w-full min-w-[620px] border-collapse text-left">
@@ -356,11 +471,7 @@ export default function PenggunaPage() {
         footer={
           <>
             <Button onClick={resetModal}>Batal</Button>
-            <Button
-              variant="primary"
-              disabled={savingForm || form.username.trim().length < 3 || form.displayName.trim().length < 2 || form.password.length < 6}
-              onClick={() => void submitCreate()}
-            >
+            <Button variant="primary" disabled={savingForm} onClick={() => void submitCreate()}>
               {savingForm ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               {savingForm ? "Membuat…" : "Buat akun"}
             </Button>
@@ -368,25 +479,19 @@ export default function PenggunaPage() {
         }
       >
         <div className="space-y-3.5">
-          <Field label="Nama pengguna" htmlFor="new-username" hint="Huruf kecil, angka, titik, garis bawah. Dipakai untuk login.">
+          <Field label="Nama pengguna" htmlFor="new-username" hint="Huruf kecil, angka, titik, garis bawah. Dipakai untuk login." error={usernameError}>
             <Input id="new-username" value={form.username} maxLength={30} autoComplete="off"
               onChange={event => setForm({ ...form, username: event.target.value.toLowerCase() })} placeholder="mis. budi" />
           </Field>
-          <Field label="Nama tampilan" htmlFor="new-display-name">
+          <Field label="Nama tampilan" htmlFor="new-display-name" error={displayNameError}>
             <Input id="new-display-name" value={form.displayName} maxLength={80}
               onChange={event => setForm({ ...form, displayName: event.target.value })} placeholder="mis. Sinta Rahmawati" />
           </Field>
-          <Field label="Kata sandi awal" htmlFor="new-password" hint="Minimal 6 karakter; pengguna bisa menggantinya sendiri.">
-            <Input id="new-password" type="password" autoComplete="new-password" value={form.password}
-              onChange={event => setForm({ ...form, password: event.target.value })} />
-          </Field>
+          <div>
+            <p className="mb-1.5 text-xs font-semibold text-ink">Peran</p>
+            <RolePicker idPrefix="new" value={form.role} onChange={role => setForm({ ...form, role })} />
+          </div>
           <div className="grid gap-3.5 sm:grid-cols-2">
-            <Field label="Peran" htmlFor="new-role">
-              <Select id="new-role" value={form.role} onChange={event => setForm({ ...form, role: event.target.value as FormState["role"] })}>
-                <option value="member">Anggota</option>
-                <option value="admin">Koordinator (admin)</option>
-              </Select>
-            </Field>
             <Field label="Divisi" htmlFor="new-division">
               <Select id="new-division" value={form.division} onChange={event => setForm({ ...form, division: event.target.value })}>
                 {DIVISIONS.map(division => (
@@ -394,23 +499,69 @@ export default function PenggunaPage() {
                 ))}
               </Select>
             </Field>
-            <Field label="Anggota terkait" htmlFor="new-member">
+            <Field label="Anggota terkait" htmlFor="new-member" hint="Kartu standup yang diwakili akun ini.">
               <Select id="new-member" value={form.memberId} onChange={event => setForm({ ...form, memberId: event.target.value })}>
                 <option value="">— tidak terhubung —</option>
-                {memberOptions.map(member => (
-                  <option key={member.id} value={member.id}>
-                    {member.name}{member.active === false ? " (nonaktif)" : ""}
-                  </option>
-                ))}
+                {renderMemberOptions()}
               </Select>
             </Field>
           </div>
+          <Field label="Kata sandi awal" htmlFor="new-password" hint="Minimal 6 karakter — pengguna bisa menggantinya sendiri." error={passwordError}>
+            <div className="flex gap-2">
+              <PasswordInput id="new-password" className="min-w-0 flex-1" value={form.password}
+                onChange={event => setForm({ ...form, password: event.target.value })} />
+              <Button variant="secondary" title="Buat kata sandi acak" onClick={() => setForm({ ...form, password: generatePassword() })}>
+                <Wand2 className="h-4 w-4" /> Buat otomatis
+              </Button>
+            </div>
+          </Field>
           {formError ? (
             <p className="flex items-start gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-900">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {formError}
             </p>
           ) : null}
         </div>
+      </Modal>
+
+      <Modal
+        open={Boolean(created)}
+        onClose={() => setCreated(null)}
+        title="Akun dibuat"
+        description="Kirim kredensial ini ke anggota — kata sandi tidak akan tampil lagi setelah jendela ini ditutup."
+        size="sm"
+        footer={
+          <>
+            <Button onClick={() => setCreated(null)}>Tutup</Button>
+            <CopyButton text={created ? whatsappCredentials(created) : ""} label="Salin untuk WhatsApp" variant="primary" size="md" />
+          </>
+        }
+      >
+        {created ? (
+          <div className="space-y-3.5">
+            <div className="rounded-xl border border-line bg-[#fbfaf6] p-3.5">
+              <div className="flex items-center gap-2.5">
+                <Avatar name={created.displayName} accent={created.role === "admin" ? "emerald" : "teal"} size="md" />
+                <div className="min-w-0 leading-tight">
+                  <p className="truncate text-sm font-semibold text-ink">{created.displayName}</p>
+                  <p className="truncate text-[11px] text-ink-soft">
+                    @{created.username} · {created.role === "admin" ? "Koordinator" : "Anggota"} · {created.division}
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 flex items-center justify-between gap-2 border-t border-line pt-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">Kata sandi awal</p>
+                  <p className="mt-0.5 truncate font-mono text-sm tracking-wide text-ink">{created.password}</p>
+                </div>
+                <CopyButton text={created.password} label="Salin sandi" variant="secondary" />
+              </div>
+            </div>
+            <p className="flex items-start gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-snug text-amber-900">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              Ingatkan anggota untuk segera mengganti kata sandi setelah masuk pertama di menu Pengguna.
+            </p>
+          </div>
+        ) : null}
       </Modal>
 
       <Modal
@@ -422,7 +573,7 @@ export default function PenggunaPage() {
         footer={
           <>
             <Button onClick={resetModal}>Batal</Button>
-            <Button variant="primary" disabled={savingForm || form.displayName.trim().length < 2} onClick={() => void submitEdit()}>
+            <Button variant="primary" disabled={savingForm} onClick={() => void submitEdit()}>
               {savingForm ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
               {savingForm ? "Menyimpan…" : "Simpan"}
             </Button>
@@ -430,17 +581,15 @@ export default function PenggunaPage() {
         }
       >
         <div className="space-y-3.5">
-          <Field label="Nama tampilan" htmlFor="edit-display-name">
+          <Field label="Nama tampilan" htmlFor="edit-display-name" error={displayNameError}>
             <Input id="edit-display-name" value={form.displayName} maxLength={80}
               onChange={event => setForm({ ...form, displayName: event.target.value })} />
           </Field>
+          <div>
+            <p className="mb-1.5 text-xs font-semibold text-ink">Peran</p>
+            <RolePicker idPrefix="edit" value={form.role} onChange={role => setForm({ ...form, role })} />
+          </div>
           <div className="grid gap-3.5 sm:grid-cols-2">
-            <Field label="Peran" htmlFor="edit-role">
-              <Select id="edit-role" value={form.role} onChange={event => setForm({ ...form, role: event.target.value as FormState["role"] })}>
-                <option value="member">Anggota</option>
-                <option value="admin">Koordinator (admin)</option>
-              </Select>
-            </Field>
             <Field label="Divisi" htmlFor="edit-division">
               <Select id="edit-division" value={form.division} onChange={event => setForm({ ...form, division: event.target.value })}>
                 {DIVISIONS.map(division => (
@@ -448,30 +597,35 @@ export default function PenggunaPage() {
                 ))}
               </Select>
             </Field>
-            <Field label="Anggota terkait" htmlFor="edit-member">
+            <Field label="Anggota terkait" htmlFor="edit-member" hint="Kartu standup yang diwakili akun ini.">
               <Select id="edit-member" value={form.memberId} onChange={event => setForm({ ...form, memberId: event.target.value })}>
                 <option value="">— tidak terhubung —</option>
-                {memberOptions.map(member => (
-                  <option key={member.id} value={member.id}>
-                    {member.name}{member.active === false ? " (nonaktif)" : ""}
-                  </option>
-                ))}
+                {renderMemberOptions()}
               </Select>
             </Field>
           </div>
-          <Field label="Kata sandi baru" htmlFor="edit-password" hint="Kosongkan bila tidak diganti; admin tidak perlu sandi lama.">
-            <Input id="edit-password" type="password" autoComplete="new-password" value={form.password}
-              onChange={event => setForm({ ...form, password: event.target.value })} />
+          <Field label="Kata sandi baru" htmlFor="edit-password" hint="Kosongkan bila tidak diganti; admin tidak perlu sandi lama." error={editPasswordError}>
+            <div className="flex gap-2">
+              <PasswordInput id="edit-password" className="min-w-0 flex-1" value={form.password}
+                onChange={event => setForm({ ...form, password: event.target.value })} />
+              <Button variant="secondary" title="Buat kata sandi acak" onClick={() => setForm({ ...form, password: generatePassword() })}>
+                <Wand2 className="h-4 w-4" /> Buat otomatis
+              </Button>
+            </div>
           </Field>
-          <label className="flex items-center gap-2 rounded-xl border border-line bg-[#fbfaf6] px-3 py-2.5 text-xs text-ink-soft">
-            <input
-              type="checkbox"
-              checked={form.active}
-              onChange={event => setForm({ ...form, active: event.target.checked })}
-              className="accent-teal-700"
-            />
-            Akun aktif (dapat masuk). Nonaktifkan untuk mencabut akses tanpa menghapus riwayat.
-          </label>
+          <div className="flex items-start justify-between gap-3 rounded-xl border border-line bg-[#fbfaf6] px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-ink">Akun aktif</p>
+              <p className="mt-0.5 text-[11px] leading-snug text-ink-soft">Nonaktifkan untuk mencabut akses tanpa menghapus riwayat.</p>
+            </div>
+            <Switch checked={form.active} onCheckedChange={checked => setForm({ ...form, active: checked })} />
+          </div>
+          {editing?.active && !form.active ? (
+            <p className="flex items-start gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-snug text-amber-900">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              Setelah disimpan, @{editing.username} langsung dikeluarkan dari aplikasi dan tidak bisa masuk lagi sampai diaktifkan.
+            </p>
+          ) : null}
           {formError ? (
             <p className="flex items-start gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-900">
               <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {formError}

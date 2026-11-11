@@ -16,7 +16,7 @@ import {
   type SelectHTMLAttributes,
   type TextareaHTMLAttributes,
 } from "react";
-import { AlertTriangle, Check, CheckCircle2, Copy, Inbox, Info, X } from "lucide-react";
+import { AlertTriangle, Check, CheckCircle2, Copy, Eye, EyeOff, Inbox, Info, X } from "lucide-react";
 import type { Accent, TaskStatus } from "@/lib/types";
 import { statusMeta } from "@/lib/tasks";
 
@@ -251,6 +251,30 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   return <input className={cn(inputClass, className)} {...props} />;
 }
 
+/** Input kata sandi dengan tombol tampil/sembunyi; teks tetap monospace agar sandi acak mudah dibaca. */
+export function PasswordInput({ className, ...props }: InputHTMLAttributes<HTMLInputElement>) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="relative">
+      <input
+        type={visible ? "text" : "password"}
+        autoComplete="new-password"
+        className={cn(inputClass, "pr-10 font-mono tracking-wide", className)}
+        {...props}
+      />
+      <button
+        type="button"
+        tabIndex={-1}
+        aria-label={visible ? "Sembunyikan kata sandi" : "Tampilkan kata sandi"}
+        onClick={() => setVisible(!visible)}
+        className="absolute inset-y-0 right-0 grid w-10 cursor-pointer place-items-center text-ink-soft/70 transition-colors hover:text-ink"
+      >
+        {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+      </button>
+    </div>
+  );
+}
+
 export function Textarea({ className, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea className={cn(inputClass, "min-h-20 resize-y leading-relaxed", className)} {...props} />;
 }
@@ -296,6 +320,42 @@ export function ChipButton({
       {...props}
     >
       {children}
+    </button>
+  );
+}
+
+/** Saklar aktif/nonaktif pengganti checkbox bawaan browser. */
+export function Switch({
+  checked,
+  onCheckedChange,
+  disabled,
+  className,
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & {
+  checked: boolean;
+  onCheckedChange?: (checked: boolean) => void;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      onClick={() => onCheckedChange?.(!checked)}
+      className={cn(
+        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer items-center rounded-full border transition-colors",
+        checked ? "border-brand bg-brand" : "border-line bg-slate-200",
+        disabled && "cursor-not-allowed opacity-50",
+        className,
+      )}
+      {...props}
+    >
+      <span
+        className={cn(
+          "inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform",
+          checked ? "translate-x-[25px]" : "translate-x-[3px]",
+        )}
+      />
     </button>
   );
 }
@@ -511,6 +571,15 @@ export async function copyToClipboard(text: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+const PASSWORD_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+
+/** Kata sandi acak 12 karakter tanpa karakter mirip (0/O, 1/l/I) — nyaman dibaca dan dibacakan. */
+export function generatePassword(length = 12): string {
+  const values = new Uint32Array(length);
+  crypto.getRandomValues(values);
+  return Array.from(values, value => PASSWORD_ALPHABET[value % PASSWORD_ALPHABET.length]).join("");
 }
 
 export function CopyButton({
