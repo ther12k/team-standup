@@ -3,9 +3,10 @@
 import { Link } from "@/components/link";
 import { AlignJustify, FileText, Maximize2 } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { useUser } from "@/components/user-context";
+import { useDivisionScope } from "@/components/user-context";
 import { ReportExperience } from "@/components/reports/report-experience";
 import { PageLoading } from "@/components/ui";
+import { scopedState } from "@/lib/division";
 
 /**
  * Menu Laporan: pengalaman yang sama persis dengan tampilan fokus /laporan/lihat
@@ -13,7 +14,7 @@ import { PageLoading } from "@/components/ui";
  */
 export default function LaporanPage() {
   const { state, hydrated, today } = useStore();
-  const user = useUser();
+  const { division } = useDivisionScope();
   if (!hydrated) return <PageLoading label="Menyiapkan laporan…" />;
   return (
     <div className="space-y-4">
@@ -41,7 +42,7 @@ export default function LaporanPage() {
           </Link>
         </div>
       </div>
-      <ReportExperience data={state} today={today} teamDivision={user?.division ?? null} />
+      <ReportExperience data={scopedState(state, division)} today={today} teamDivision={division} />
     </div>
   );
 }

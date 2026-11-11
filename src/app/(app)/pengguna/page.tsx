@@ -23,6 +23,7 @@ import {
   useToast,
 } from "@/components/ui";
 import { displayNameSchema, passwordSchema, usernameSchema } from "@/lib/users-validation";
+import { DIVISIONS, memberDivision } from "@/lib/division";
 import type { SessionUser } from "@/lib/types";
 
 type FormState = {
@@ -36,9 +37,6 @@ type FormState = {
 };
 
 const EMPTY_FORM: FormState = { username: "", displayName: "", password: "", role: "member", division: "M2MPD", memberId: "", active: true };
-
-/** Divisi yang dikenal di ruang kerja (bisa disesuaikan untuk tim kamu). */
-const DIVISIONS = ["M2MPD", "RnD", "Product", "Maintenance", "PM Project"] as const;
 
 /** Ringkasan akun baru untuk modal "akun dibuat" — sandi awal hanya tampil sekali. */
 type CreatedAccount = { username: string; displayName: string; password: string; role: "admin" | "member"; division: string };
@@ -284,6 +282,7 @@ export default function PenggunaPage() {
       <option key={member.id} value={member.id} disabled={Boolean(owner)}>
         {member.name}
         {member.active === false ? " (nonaktif)" : ""}
+        {` · ${memberDivision(member)}`}
         {owner ? ` · terhubung @${owner.username}` : ""}
       </option>
     );
@@ -345,7 +344,7 @@ export default function PenggunaPage() {
               <option value="">— tidak terhubung —</option>
               {memberOptions.map(member => (
                 <option key={member.id} value={member.id}>
-                  {member.name}{member.active === false ? " (nonaktif)" : ""}
+                  {member.name}{member.active === false ? " (nonaktif)" : ""}{` · ${memberDivision(member)}`}
                 </option>
               ))}
             </Select>

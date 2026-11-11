@@ -4,9 +4,10 @@ import { useNavigate } from "react-router-dom";
 import { Calendar, FileText, Maximize2 } from "lucide-react";
 import { Link } from "@/components/link";
 import { useStore } from "@/lib/store";
-import { useUser } from "@/components/user-context";
+import { useDivisionScope } from "@/components/user-context";
 import { ReportFeed } from "@/components/reports/report-feed";
 import { Button, PageLoading } from "@/components/ui";
+import { scopedState } from "@/lib/division";
 
 /**
  * Tampilan alternatif laporan berupa linimasa / feed (gaya Facebook),
@@ -15,7 +16,7 @@ import { Button, PageLoading } from "@/components/ui";
 export default function LaporanFeedPage() {
   const navigate = useNavigate();
   const { state, hydrated, today } = useStore();
-  const user = useUser();
+  const { division } = useDivisionScope();
 
   if (!hydrated) return <PageLoading label="Menyiapkan linimasa…" />;
 
@@ -50,9 +51,9 @@ export default function LaporanFeedPage() {
 
       {/* Main Feed */}
       <ReportFeed
-        data={state}
+        data={scopedState(state, division)}
         today={today}
-        teamDivision={user?.division ?? "M2MPD"}
+        teamDivision={division}
         onSwitchToCalendar={() => navigate("/laporan")}
       />
     </div>

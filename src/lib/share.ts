@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { addDays, endOfWeek, isValidISODate, startOfWeek } from "@/lib/date";
+import { memberDivision } from "@/lib/division";
 import type { AppState } from "@/lib/types";
 
 /** Berbagi laporan: maksimal 62 hari per tautan agar payload tetap terkendali. */
@@ -69,9 +70,16 @@ export const shareCreateSchema = z
  * referensi ikut untuk rentang jendela (chip "Divisi lain" tetap tampil),
  * riwayat impor tidak. Laporan mengikuti data terkini setiap kali tautan
  * dibuka (bukan snapshot beku).
+ *
+ * Bila `division` diisi (divisi pembuat tautan), pembaca tanpa akun hanya melihat
+ * anggota dan entri divisi itu — data divisi lain tidak ikut terbagikan.
  */
-export function filterStateForRange(state: AppState, start: string, end: string): AppState {
-  const entries = state.entries.filter(entry => entry.date >= start && entry.date <= end);
+export function filterStateForRange(state: AppState, start: string, end: string, division?: string | null): AppState {
+  const members = division ? state.members.filter(member => memberDivision(member) === division) : state.members;
+  const memberIds = new Set(members.map(member => member.id));
+  const entries = state.entries.filter(
+    entry => entry.date >= start && entry.date <= end && (!division || memberIds.has(entry.memberId)),
+  );
   const taskIds = new Set<string>();
   for (const entry of entries) {
     for (const item of [...entry.plans, ...entry.done, ...entry.blockers]) {
@@ -81,11 +89,13 @@ export function filterStateForRange(state: AppState, start: string, end: string)
   const tasks = state.tasks.filter(task => taskIds.has(task.id));
   return {
     version: 1,
-    members: state.members,
+    members,
     tasks,
     entries,
     imports: [],
     holidays: state.holidays,
-    divisionReports: (state.divisionReports ?? []).filter(report => report.date >= start && report.date <= end),
+    divisionReports: (state.divisionReports ?? []).filter(
+      report => report.date >= start && report.date <= end && (!division || report.division !== division),
+    ),
   };
 }

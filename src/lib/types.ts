@@ -9,6 +9,8 @@ export type Member = {
   accent: Accent;
   /** Anggota non-aktif (resign/cuti panjang): riwayat lama tetap terlihat, tidak dihitung sebagai "belum mengisi". */
   active?: boolean;
+  /** Divisi pemilik kartu anggota; kosong berarti divisi bawaan (M2MPD) untuk data lama. */
+  division?: string;
 };
 
 export type StatusEvent = {

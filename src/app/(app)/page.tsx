@@ -36,6 +36,7 @@ import {
   PageLoading,
   Pill,
   SectionLabel,
+  Select,
   StatCard,
   useToast,
   cn,
@@ -66,23 +67,29 @@ import {
 } from "@/lib/workdays";
 import { formatStandupForWhatsApp } from "@/lib/whatsapp";
 import { ABSENCE_LABEL, detectAbsence, entryAbsence, type AbsenceKind } from "@/lib/absence";
+import { DIVISIONS, memberDivision, scopedState } from "@/lib/division";
+import { useDivisionScope } from "@/components/user-context";
 import type { StandupEntry, StandupItem } from "@/lib/types";
 import type { EntryDraft } from "@/lib/store";
 
 export default function StandupPage() {
-  const { state, hydrated, today, saveEntry, addMember, carryOver, addHoliday, removeHoliday, setMemberActive } = useStore();
+  const { state, hydrated, today, saveEntry, addMember, carryOver, addHoliday, removeHoliday, setMemberActive, setMemberDivision } = useStore();
+  const { division } = useDivisionScope();
   const { notify } = useToast();
   const [date, setDate] = useState("");
   const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
   const [carryOpen, setCarryOpen] = useState(false);
   const [waOpen, setWaOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
-  const [newMember, setNewMember] = useState({ name: "", role: "" });
+  const [newMember, setNewMember] = useState<{ name: string; role: string; division: string | null }>({ name: "", role: "", division: null });
   const [memberError, setMemberError] = useState<string | null>(null);
   const [newHoliday, setNewHoliday] = useState({ date: "", label: "" });
   const [manageOpen, setManageOpen] = useState(false);
 
   const holidays = state.holidays ?? [];
+
+  // Cakupan divisi: papan hanya menampilkan anggota divisi yang dilihat pengguna.
+  const scoped = useMemo(() => scopedState(state, division), [state, division]);
 
   useEffect(() => {
     if (today && !date) setDate(latestWorkingDayOnOrBefore(today, holidays));
@@ -107,10 +114,10 @@ export default function StandupPage() {
       // Angka "mengisi" hanya menghitung anggota aktif yang bekerja — non-aktif
       // dan yang menulis cuti/sakit/izin tidak menaikkan pembilang.
       filled: entries.filter((entry) =>
-        state.members.find((m) => m.id === entry.memberId)?.active !== false && !entryAbsence(entry),
+        scoped.members.find((m) => m.id === entry.memberId)?.active !== false && !entryAbsence(entry),
       ).length,
     };
-  }, [entryByMember, state.members]);
+  }, [entryByMember, scoped.members]);
 
   const absentees = useMemo(() => {
     const list: { memberId: string; kind: AbsenceKind; note: string }[] = [];
@@ -126,10 +133,10 @@ export default function StandupPage() {
   const absentMemberIds = useMemo(() => new Set(absentees.map((a) => a.memberId)), [absentees]);
 
   const missing = useMemo(
-    () => membersWithoutEntry(state, date).filter((member) => !absentMemberIds.has(member.id)),
-    [state, date, absentMemberIds],
+    () => membersWithoutEntry(scoped, date).filter((member) => !absentMemberIds.has(member.id)),
+    [scoped, date, absentMemberIds],
   );
-  const candidates = useMemo(() => carryCandidates(state, date), [state, date]);
+  const candidates = useMemo(() => carryCandidates(scoped, date), [scoped, date]);
   const quickCandidates = useMemo(() => candidates.filter((candidate) => !candidate.alreadyPlanned).slice(0, 4), [candidates]);
   const weekDates = useMemo(() => (isValidISODate(date) ? eachDate(startOfWeek(date), endOfWeek(date)) : []), [date]);
   const projects = useMemo(
@@ -142,8 +149,8 @@ export default function StandupPage() {
   const daySelectable = (day: string) => isDateSelectable(day, holidays, dayHasData(day));
   const upcomingHolidays = holidays.filter((holiday) => holiday.date >= today).slice(0, 5);
 
-  const activeMembers = state.members.filter((member) => member.active !== false);
-  const inactiveMembers = state.members.filter((member) => member.active === false);
+  const activeMembers = scoped.members.filter((member) => member.active !== false);
+  const inactiveMembers = scoped.members.filter((member) => member.active === false);
   // Anggota aktif selalu tampil; non-aktif hanya bila punya catatan pada tanggal terpilih
   // (riwayat tetap terbuka, tetapi tidak mengundang pengisian baru).
   const gridMembers = [
@@ -153,7 +160,7 @@ export default function StandupPage() {
 
   if (!hydrated || !date) return <PageLoading />;
 
-  const waText = formatStandupForWhatsApp(state, date);
+  const waText = formatStandupForWhatsApp(scoped, date);
   const reminderText = [
     `Halo, mohon lengkapi standup ${formatMediumDate(date)}:`,
     ...missing.map((member) => `• ${member.name}`),
@@ -184,13 +191,13 @@ export default function StandupPage() {
       setMemberError("Nama anggota minimal 2 karakter.");
       return;
     }
-    const member = addMember(newMember.name, newMember.role);
+    const member = addMember(newMember.name, newMember.role, newMember.division ?? division);
     if (!member) {
       setMemberError("Nama anggota tidak valid.");
       return;
     }
     setAddOpen(false);
-    setNewMember({ name: "", role: "" });
+    setNewMember({ name: "", role: "", division: null });
     setMemberError(null);
     setEditingMemberId(member.id);
     notify(`${member.name} siap diisi standup-nya.`);
@@ -669,6 +676,17 @@ export default function StandupPage() {
               placeholder="Teknisi Lapangan"
             />
           </Field>
+          <Field label="Divisi" htmlFor="member-division" hint="Kartu anggota hanya tampil di papan divisinya.">
+            <Select
+              id="member-division"
+              value={newMember.division ?? division}
+              onChange={(event) => setNewMember((current) => ({ ...current, division: event.target.value }))}
+            >
+              {DIVISIONS.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </Select>
+          </Field>
           <div className="flex items-start gap-2 rounded-xl border border-dashed border-line bg-[#fbfaf6] px-3 py-2 text-[11px] leading-snug text-ink-soft">
             <CalendarPlus className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             Setelah ditambahkan, formulir standup anggota akan langsung terbuka untuk tanggal {formatMediumDate(date)}.
@@ -680,12 +698,12 @@ export default function StandupPage() {
         open={manageOpen}
         onClose={() => setManageOpen(false)}
         title="Kelola anggota"
-        description="Non-aktifkan anggota yang resign: riwayat lama tetap terlihat di laporan, tetapi tidak dihitung sebagai “belum mengisi”."
+        description="Non-aktifkan anggota yang resign dan perbaiki divisinya — daftar ini mencakup semua divisi."
         size="md"
         footer={<Button onClick={() => setManageOpen(false)}>Selesai</Button>}
       >
         <ul className="space-y-1.5">
-          {[...activeMembers, ...inactiveMembers].map((member) => {
+          {[...state.members].sort((a, b) => memberDivision(a).localeCompare(memberDivision(b)) || a.name.localeCompare(b.name)).map((member) => {
             const active = member.active !== false;
             const entryCount = state.entries.filter((entry) => entry.memberId === member.id).length;
             return (
@@ -699,6 +717,16 @@ export default function StandupPage() {
                     {member.role} · {entryCount} catatan
                   </p>
                 </div>
+                <select
+                  aria-label={`Divisi ${member.name}`}
+                  value={memberDivision(member)}
+                  onChange={(event) => setMemberDivision(member.id, event.target.value)}
+                  className="h-8 shrink-0 rounded-lg border border-line bg-[#fbfaf6] px-2 text-[11px] text-ink"
+                >
+                  {DIVISIONS.map((item) => (
+                    <option key={item} value={item}>{item}</option>
+                  ))}
+                </select>
                 <button
                   type="button"
                   role="switch"

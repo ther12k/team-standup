@@ -4,17 +4,18 @@
 import { useEffect, useState } from "react";
 import { AlignJustify, Calendar, Globe2, LockKeyhole } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { useUser } from "@/components/user-context";
+import { useDivisionScope } from "@/components/user-context";
 import { ReportExperience } from "@/components/reports/report-experience";
 import { ReportFeed } from "@/components/reports/report-feed";
 import { FocusBrand } from "@/components/focus-brand";
 import { Button, PageLoading, cn } from "@/components/ui";
 import { formatClock, isValidISODate } from "@/lib/date";
 import type { PublishedReport } from "@/lib/live";
+import { scopedState } from "@/lib/division";
 
 export default function ReportFocusPage() {
   const { state, hydrated, today, storageError } = useStore();
-  const user = useUser();
+  const { division } = useDivisionScope();
   const [view, setView] = useState<"calendar" | "feed">("calendar");
   const [query, setQuery] = useState<{ room: string | null; key: string; date: string | null } | null>(null);
   const [remote, setRemote] = useState<PublishedReport | null>(null);
@@ -46,7 +47,8 @@ export default function ReportFocusPage() {
   }, [query, today, attempt]);
 
   const snapshot = Boolean(query?.room);
-  const data = snapshot ? remote?.state ?? null : state;
+  // Laporan workspace mengikuti divisi yang dilihat; snapshot Live membawa anggota sesinya sendiri.
+  const data = snapshot ? remote?.state ?? null : hydrated ? scopedState(state, division) : null;
   const initialDate = isValidISODate(query?.date ?? "") ? query?.date ?? null : remote?.date ?? null;
 
   return <div className="focus-page">
@@ -87,9 +89,9 @@ export default function ReportFocusPage() {
         : !hydrated || !query ? <PageLoading label="Menyiapkan laporan…" /> : <>
         {storageError && !query.room && <p role="alert" className="mb-4 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">{storageError}</p>}
         {view === "feed" ? (
-          <ReportFeed data={data} today={today} teamDivision={user?.division ?? null} onSwitchToCalendar={() => setView("calendar")} />
+          <ReportFeed data={data} today={today} teamDivision={division} onSwitchToCalendar={() => setView("calendar")} />
         ) : (
-          <ReportExperience data={data} today={today} snapshot={snapshot} initialDate={initialDate} teamDivision={user?.division ?? null} />
+          <ReportExperience data={data} today={today} snapshot={snapshot} initialDate={initialDate} teamDivision={division} />
         )}
       </>}
       <footer className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-[#e2e8dc] pt-3 text-[10px] text-ink-soft/60"><span className="flex items-center gap-1.5"><LockKeyhole size={12} /> {query?.room ? "Tautan baca-saja; percakapan dan transkrip tidak dibagikan." : "Data tim tersinkron lintas perangkat melalui server; laporan Live terbit tetap punya tautan baca-saja sendiri."}</span><span>{remote ? `Diterbitkan ${formatClock(remote.publishedAt)} WIB` : "Ruang kerja tim"} <span className="mx-2">·</span> Dirangkum dengan Team Standup</span></footer>

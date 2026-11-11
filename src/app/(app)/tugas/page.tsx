@@ -15,6 +15,8 @@ import {
   Users,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { useDivisionScope } from "@/components/user-context";
+import { scopedState } from "@/lib/division";
 import {
   Avatar,
   Button,
@@ -43,6 +45,7 @@ type SortOption = "due" | "recent" | "status";
 
 export default function TugasPage() {
   const { state, hydrated, today, createTask } = useStore();
+  const { division } = useDivisionScope();
   const { notify } = useToast();
   const [search, setSearch] = useState("");
   const [assignee, setAssignee] = useState("all");
@@ -73,15 +76,21 @@ export default function TugasPage() {
     return map;
   }, [state]);
 
+  // Cakupan divisi: tugas tampil bila tanpa PIC (milik semua divisi) atau salah
+  // satu PIC-nya ada di divisi yang dilihat.
+  const scoped = useMemo(() => scopedState(state, division), [state, division]);
+  const scopedMemberIds = useMemo(() => new Set(scoped.members.map((member) => member.id)), [scoped]);
+
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     const list = state.tasks.filter((task) => {
+      if (task.assigneeIds.length > 0 && !task.assigneeIds.some((id) => scopedMemberIds.has(id))) return false;
       if (assignee !== "all" && !task.assigneeIds.includes(assignee)) return false;
       if (status !== "all" && task.status !== status) return false;
       if (project !== "all" && (task.project ?? "") !== project) return false;
       if (overdueOnly && !isTaskOverdue(task, today)) return false;
       if (!query) return true;
-      const assigneeNames = state.members
+      const assigneeNames = scoped.members
         .filter((member) => task.assigneeIds.includes(member.id))
         .map((member) => member.name.toLowerCase())
         .join(" ");
@@ -95,7 +104,7 @@ export default function TugasPage() {
       const bDue = b.dueDate ?? "9999-12-31";
       return aDue.localeCompare(bDue);
     });
-  }, [state.tasks, state.members, search, assignee, status, project, overdueOnly, sort, today]);
+  }, [state.tasks, scoped, scopedMemberIds, search, assignee, status, project, overdueOnly, sort, today]);
 
   if (!hydrated) return <PageLoading />;
 
@@ -224,7 +233,7 @@ export default function TugasPage() {
             onChange={setAssignee}
             options={[
               { value: "all", label: "Semua anggota" },
-              ...state.members.map((member) => ({ value: member.id, label: member.name })),
+              ...scoped.members.map((member) => ({ value: member.id, label: member.name })),
             ]}
           />
           <FilterSelect
@@ -296,7 +305,7 @@ export default function TugasPage() {
             <TaskListItem
               key={task.id}
               task={task}
-              members={state.members}
+              members={scoped.members}
               standupCount={standupCount.get(task.id) ?? 0}
               today={today}
               onOpen={() => setSelectedId(task.id)}
@@ -326,7 +335,7 @@ export default function TugasPage() {
                     </p>
                   ) : (
                     columnTasks.map((task) => {
-                      const assignees = state.members.filter((member) => task.assigneeIds.includes(member.id));
+                      const assignees = scoped.members.filter((member) => task.assigneeIds.includes(member.id));
                       const overdue = isTaskOverdue(task, today);
                       return (
                         <button
@@ -372,7 +381,7 @@ export default function TugasPage() {
       <TaskCreateModal
         open={createOpen}
         onClose={() => setCreateOpen(false)}
-        members={state.members}
+        members={scoped.members}
         projects={projects}
         onCreate={handleCreate}
       />

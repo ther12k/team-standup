@@ -19,6 +19,8 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { useDivisionScope } from "@/components/user-context";
+import { scopedState } from "@/lib/division";
 import type { ImportDecision, ImportSummary } from "@/lib/import-apply";
 import {
   Button,
@@ -141,7 +143,11 @@ export function prefillRole(name: string): string {
   return hit ? ROLE_HINTS[hit] : "Tim Operasional";
 }
 
-function buildDecision(draft: ReportDraft, roleOverrides: Record<string, string> = {}, options: { skipTeamNotes?: boolean } = {}): ImportDecision {
+function buildDecision(
+  draft: ReportDraft,
+  roleOverrides: Record<string, string> = {},
+  options: { skipTeamNotes?: boolean; division?: string } = {},
+): ImportDecision {
   return {
     reportDate: draft.reportDate,
     originalText: draft.originalText,
@@ -159,6 +165,7 @@ function buildDecision(draft: ReportDraft, roleOverrides: Record<string, string>
               ? {
                   name: newName,
                   role: roleOverrides[normalizeMemberName(newName)] ?? (member.newRole.trim() || "Anggota tim"),
+                  ...(options.division ? { division: options.division } : {}),
                 }
               : undefined,
           activities: member.activities
@@ -193,6 +200,7 @@ function FlagRow({ flag }: { flag: ParseFlag }) {
 
 export default function ImporPage() {
   const { state, hydrated, today, runImport } = useStore();
+  const { division } = useDivisionScope();
   const { notify } = useToast();
   const [text, setText] = useState("");
   const [drafts, setDrafts] = useState<ReportDraft[]>([]);
@@ -204,6 +212,9 @@ export default function ImporPage() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkRoles, setBulkRoles] = useState<Record<string, string>>({});
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Impor mengenali anggota divisi yang dilihat; anggota baru otomatis masuk divisi itu.
+  const scopedMembers = scopedState(state, division).members;
 
   const imports = useMemo(
     () => [...state.imports].sort((a, b) => (a.importedAt < b.importedAt ? 1 : -1)),
@@ -257,7 +268,7 @@ export default function ImporPage() {
       setParseError("Tempel teks laporan terlebih dahulu, atau unggah berkas .txt.");
       return;
     }
-    const result = parseStandupText(trimmed, state.members);
+    const result = parseStandupText(trimmed, scopedMembers);
     setParseError(
       result.reports.length === 0
         ? result.chat
@@ -265,7 +276,7 @@ export default function ImporPage() {
           : "Tidak ada struktur laporan yang dikenali. Pastikan ada baris judul laporan dan tanggal, mis. “Report Daily Stand Up – 13/10/2026”."
         : null,
     );
-    setDrafts(result.reports.map((report) => toDraftReport(report, state.members)));
+    setDrafts(result.reports.map((report) => toDraftReport(report, scopedMembers)));
     setIgnored(result.ignoredLines);
     setReportErrors({});
     if (result.reports.length > 0) {
@@ -343,7 +354,7 @@ export default function ImporPage() {
       setReportErrors((current) => ({ ...current, [draft.id]: error }));
       return;
     }
-    const summary: ImportSummary = runImport(buildDecision(draft));
+    const summary: ImportSummary = runImport(buildDecision(draft, {}, { division }));
     const parts = [
       `${summary.itemsAdded} aktivitas baru`,
       summary.itemsSkipped > 0 ? `${summary.itemsSkipped} duplikat dilewati` : null,
@@ -389,7 +400,7 @@ export default function ImporPage() {
             withoutDate += 1;
             return;
           }
-          const summary = runImport(buildDecision(draft, bulkRoles, { skipTeamNotes: true }));
+          const summary = runImport(buildDecision(draft, bulkRoles, { skipTeamNotes: true, division }));
           if (summary.saved) saved += 1;
           added += summary.itemsAdded;
           skipped += summary.itemsSkipped;
@@ -658,7 +669,7 @@ export default function ImporPage() {
                               <option value={NEW_MEMBER}>Buat anggota baru…</option>
                               <option value={SKIP_MEMBER}>Lewati anggota ini</option>
                               <optgroup label="Anggota terdaftar">
-                                {state.members.map((item) => (
+                                {scopedMembers.map((item) => (
                                   <option key={item.id} value={item.id}>
                                     {item.name}
                                   </option>

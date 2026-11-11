@@ -16,6 +16,7 @@ import { DEFAULT_HOLIDAYS } from "@/lib/workdays";
 import { applyImport, type ImportDecision, type ImportSummary } from "@/lib/import-apply";
 import { normalizeForCompare } from "@/lib/tasks";
 import { applyLiveReport, type LiveSession } from "@/lib/live";
+import { DEFAULT_DIVISION, memberDivision } from "@/lib/division";
 
 const WORKSPACE_TOKEN_KEY = "team-standup-wst";
 const ACCENTS: Accent[] = ["teal", "sky", "violet", "amber", "rose", "emerald", "indigo", "orange"];
@@ -61,7 +62,7 @@ type StoreValue = {
   today: string;
   storageError: string | null;
   saveEntry: (draft: EntryDraft) => void;
-  addMember: (name: string, role: string) => Member | null;
+  addMember: (name: string, role: string, division?: string) => Member | null;
   createTask: (input: NewTaskInput) => Task | null;
   updateTask: (id: string, patch: Partial<Omit<Task, "id" | "statusHistory">>, note?: string) => void;
   changeTaskStatus: (id: string, status: TaskStatus, note?: string) => void;
@@ -72,6 +73,7 @@ type StoreValue = {
   addHoliday: (date: string, label: string) => void;
   removeHoliday: (date: string) => void;
   setMemberActive: (id: string, active: boolean) => void;
+  setMemberDivision: (id: string, division: string) => void;
   dismissStorageError: () => void;
 };
 
@@ -288,16 +290,22 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   );
 
   const addMember = useCallback(
-    (name: string, role: string): Member | null => {
+    (name: string, role: string, division?: string): Member | null => {
       const trimmed = name.trim();
       if (!trimmed) return null;
-      const existing = state?.members.find((m) => normalizeForCompare(m.name) === normalizeForCompare(trimmed));
+      // Nama cukup unik dalam divisinya — "Isra" Maintenance boleh berdampingan
+      // dengan "Isra" M2MPD.
+      const targetDivision = division?.trim() || DEFAULT_DIVISION;
+      const existing = state?.members.find(
+        (m) => memberDivision(m) === targetDivision && normalizeForCompare(m.name) === normalizeForCompare(trimmed),
+      );
       if (existing) return existing;
       const member: Member = {
         id: uid("m"),
         name: trimmed,
         role: role.trim() || "Anggota tim",
         accent: ACCENTS[(state?.members.length ?? 0) % ACCENTS.length],
+        ...(targetDivision !== DEFAULT_DIVISION ? { division: targetDivision } : {}),
       };
       update((current) => ({ ...current, members: [...current.members, member] }));
       return member;
@@ -490,6 +498,19 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [update],
   );
 
+  const setMemberDivision = useCallback(
+    (id: string, division: string) => {
+      const trimmed = division.trim();
+      update((current) => ({
+        ...current,
+        members: current.members.map((member) =>
+          member.id === id ? { ...member, division: trimmed && trimmed !== DEFAULT_DIVISION ? trimmed : undefined } : member,
+        ),
+      }));
+    },
+    [update],
+  );
+
   const value = useMemo<StoreValue>(
     () => ({
       state: state ?? { version: 1, members: [], tasks: [], entries: [], imports: [] },
@@ -508,9 +529,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addHoliday,
       removeHoliday,
       setMemberActive,
+      setMemberDivision,
       dismissStorageError: () => setStorageError(null),
     }),
-    [state, today, storageError, saveEntry, addMember, createTask, updateTask, changeTaskStatus, carryOver, runImport, syncLiveReport, resetDemo, addHoliday, removeHoliday, setMemberActive],
+    [state, today, storageError, saveEntry, addMember, createTask, updateTask, changeTaskStatus, carryOver, runImport, syncLiveReport, resetDemo, addHoliday, removeHoliday, setMemberActive, setMemberDivision],
   );
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

@@ -4,6 +4,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { LiveAction, LiveSession, RoomCredentials } from "@/lib/live";
 import { useStore } from "@/lib/store";
+import { useDivisionScope } from "@/components/user-context";
+import { scopedState } from "@/lib/division";
 import { useToast } from "@/components/ui";
 
 const STORAGE = "team-standup-live-room-v1";
@@ -16,6 +18,7 @@ async function jsonRequest<T>(url: string, init: RequestInit): Promise<T> {
 
 export function useLiveRoom() {
   const { state, syncLiveReport } = useStore();
+  const { division } = useDivisionScope();
   const { notify } = useToast();
   const [session, setSession] = useState<LiveSession | null>(null);
   const [credentials, setCredentials] = useState<RoomCredentials | null>(null);
@@ -92,14 +95,15 @@ export function useLiveRoom() {
     try {
       const body = await jsonRequest<{ session: LiveSession; credentials: RoomCredentials }>("/api/live/rooms", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...input, members: state.members, tasks: state.tasks.slice(0, 200) }),
+        // Ruang Live diikuti anggota divisi yang dilihat pembuatnya.
+        body: JSON.stringify({ ...input, members: scopedState(state, division).members, tasks: state.tasks.slice(0, 200) }),
       });
       remember(body.credentials); accept(body.session); setConnection("connected");
       window.history.replaceState(null, "", `/live?room=${body.session.id}#key=${body.credentials.key}`);
       return body.session;
     } catch (e) { const message = e instanceof Error ? e.message : "Tidak dapat membuat ruang."; setError(message); notify(message, "error"); return null; }
     finally { setBusy(false); inFlight.current = false; }
-  }, [state.members, state.tasks, remember, accept, notify]);
+  }, [state, division, state.tasks, remember, accept, notify]);
 
   const act = useCallback(async (action: LiveAction) => {
     const creds = credsRef.current; const current = sessionRef.current;

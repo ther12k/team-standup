@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Building2, FileText, Search, X } from "lucide-react";
 import { useStore } from "@/lib/store";
+import { useDivisionScope } from "@/components/user-context";
 import { Button, Card, EmptyState, PageLoading, Pill, cn } from "@/components/ui";
 import { DivisionReportModal } from "@/components/divisions/report-modal";
 import { formatLongDate, formatMediumDate } from "@/lib/date";
@@ -10,13 +11,18 @@ import type { DivisionReport } from "@/lib/types";
 
 export default function DivisiPage() {
   const { state, hydrated } = useStore();
+  const { division: myDivision } = useDivisionScope();
   const [division, setDivision] = useState("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<DivisionReport | null>(null);
 
+  // Laporan divisi sendiri bukan "divisi lain" — disembunyikan dari referensi.
   const reports = useMemo(
-    () => [...(state.divisionReports ?? [])].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
-    [state.divisionReports],
+    () =>
+      [...(state.divisionReports ?? [])]
+        .filter((report) => report.division !== myDivision)
+        .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
+    [state.divisionReports, myDivision],
   );
 
   const divisions = useMemo(() => {

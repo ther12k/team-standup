@@ -86,7 +86,7 @@ export function WeekTickets({ date, today, onChange, counts, hasData, holidays, 
           {todayInRange && <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[8.5px] font-semibold text-brand">HARI INI</span>}
           <span className="hidden text-[10px] text-ink-soft/70 sm:inline">{month}</span>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
           {mode && onModeChange ? (
             <div className="flex gap-0.5 rounded-lg border border-line bg-[#eaf0e7] p-0.5" role="group" aria-label="Rentang laporan">
               {([["harian", "Harian", CalendarDays], ["mingguan", "Mingguan", CalendarRange]] as const).map(([value, label, Icon]) => (
@@ -107,7 +107,7 @@ export function WeekTickets({ date, today, onChange, counts, hasData, holidays, 
           ) : null}
           <Button variant="ghost" onClick={() => onChange(latestWorkingDayOnOrBefore(today, holidays))} className="h-8 px-2.5 text-xs">Hari ini</Button>
           <div className="relative">
-            <Button onClick={() => { try { calendar.current?.showPicker(); } catch { calendar.current?.focus(); } }} className="h-8 px-3 text-xs"><CalendarDays size={14} /> Tanggal lain</Button>
+            <Button onClick={() => { try { calendar.current?.showPicker(); } catch { calendar.current?.focus(); } }} className="h-8 px-3 text-xs"><CalendarDays size={14} /> <span className="sr-only sm:not-sr-only">Tanggal lain</span></Button>
             <input
               ref={calendar}
               type="date"

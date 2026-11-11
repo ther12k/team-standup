@@ -134,10 +134,12 @@ export async function readShare(id: string, key: string, clientId = "unknown"): 
   const mode = shareModeFor(row.start, row.end);
   const windowStart = shareWindowStart(row.start);
   const windowEnd = shareWindowEnd(row.start, row.end);
-  // Divisi tim diambil dari akun pembuat tautan — tampil di judul laporan bersama tanggal.
+  // Divisi tim diambil dari akun pembuat tautan — tampil di judul laporan bersama tanggal
+  // dan membatasi anggota/entri yang dibagikan ke divisi pembuat saja.
   const [creator] = await db.select({ division: users.division }).from(users).where(eq(users.id, row.createdBy)).limit(1);
+  const creatorDivision = creator?.division ?? null;
   return {
-    share: { start: row.start, end: row.end, groupBy, createdAt: row.createdAt.toISOString(), mode, windowStart, windowEnd, division: creator?.division ?? null },
-    state: filterStateForRange(state, sharePreviewStart(row.start), sharePreviewEnd(row.start, row.end)),
+    share: { start: row.start, end: row.end, groupBy, createdAt: row.createdAt.toISOString(), mode, windowStart, windowEnd, division: creatorDivision },
+    state: filterStateForRange(state, sharePreviewStart(row.start), sharePreviewEnd(row.start, row.end), creatorDivision),
   };
 }

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, Outlet } from "react-router-dom";
-import { UserProvider } from "@/components/user-context";
+import { DivisionScopeProvider, UserProvider } from "@/components/user-context";
 import { StoreProvider } from "@/lib/store";
 import { AppShell } from "@/components/app-shell";
 import { ToastProvider, PageLoading } from "@/components/ui";
@@ -52,13 +52,15 @@ export function AppLayout() {
 
   return (
     <UserProvider user={user}>
-      <StoreProvider>
-        <ToastProvider>
-          <AppShell>
-            <Outlet />
-          </AppShell>
-        </ToastProvider>
-      </StoreProvider>
+      <DivisionScopeProvider user={user}>
+        <StoreProvider>
+          <ToastProvider>
+            <AppShell>
+              <Outlet />
+            </AppShell>
+          </ToastProvider>
+        </StoreProvider>
+      </DivisionScopeProvider>
     </UserProvider>
   );
 }

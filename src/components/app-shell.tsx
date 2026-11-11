@@ -20,10 +20,11 @@ import {
   X,
 } from "lucide-react";
 import { useStore } from "@/lib/store";
-import { useUser } from "@/components/user-context";
-import { Button, Modal, cn, Avatar, useToast } from "@/components/ui";
+import { useDivisionScope, useUser } from "@/components/user-context";
+import { Button, Modal, Select, cn, Avatar, useToast } from "@/components/ui";
 import { formatLongDate } from "@/lib/date";
 import { isEntryEmpty } from "@/lib/tasks";
+import { DIVISIONS, scopedState } from "@/lib/division";
 
 const NAV = [
   { href: "/", label: "Standup", hint: "Catatan harian", icon: ClipboardList },
@@ -63,8 +64,14 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
-  const filledToday = state.entries.filter((entry) => entry.date === today && !isEntryEmpty(entry)).length;
-  const memberCount = state.members.length;
+  // Cakupan divisi: hitungan "standup hari ini" mengikuti divisi yang dilihat.
+  const { division, canSwitch, setDivision } = useDivisionScope();
+  const scopedMembers = scopedState(state, division).members;
+  const scopedMemberIds = new Set(scopedMembers.map((member) => member.id));
+  const filledToday = state.entries.filter(
+    (entry) => entry.date === today && !isEntryEmpty(entry) && scopedMemberIds.has(entry.memberId),
+  ).length;
+  const memberCount = scopedMembers.filter((member) => member.active !== false).length;
 
   // Focus pages own their layout: no sidebar, mobile header, or bottom navigation.
   if (pathname === "/laporan/lihat" || pathname === "/live") return <>{children}</>;
@@ -113,9 +120,33 @@ export function AppShell({ children }: { children: ReactNode }) {
           })}
         </nav>
 
-        <div className="mt-6 rounded-xl border border-line bg-white p-3.5">
+        {canSwitch ? (
+          <div className="mt-6 rounded-xl border border-line bg-white p-3.5">
+            <label
+              htmlFor="division-scope"
+              className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft"
+            >
+              <Building2 className="h-3.5 w-3.5" /> Lihat divisi
+            </label>
+            <Select
+              id="division-scope"
+              value={division}
+              onChange={(event) => setDivision(event.target.value)}
+              className="mt-2 text-xs"
+            >
+              {DIVISIONS.map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </Select>
+            <p className="mt-1.5 text-[11px] leading-snug text-ink-soft/80">
+              Papan, laporan, dan tugas mengikuti divisi ini.
+            </p>
+          </div>
+        ) : null}
+
+        <div className={cn("rounded-xl border border-line bg-white p-3.5", canSwitch ? "mt-3" : "mt-6")}>
           <div className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-soft">
-            <CalendarDays className="h-3.5 w-3.5" /> Standup hari ini
+            <CalendarDays className="h-3.5 w-3.5" /> Standup hari ini · {division}
           </div>
           <p className="mt-1.5 text-sm font-semibold text-ink">
             {hydrated ? `${filledToday} dari ${memberCount} anggota` : "Memuat…"}

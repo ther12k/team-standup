@@ -89,6 +89,7 @@ function isWorkspaceState(value: unknown): value is AppState {
     if (!m || !isNonEmptyString(m.id, 100) || !isNonEmptyString(m.name, 100) ||
         typeof m.role !== "string" || m.role.length > 120 || typeof m.accent !== "string") return false;
     if (m.active !== undefined && typeof m.active !== "boolean") return false;
+    if (m.division !== undefined && (typeof m.division !== "string" || m.division.length > 60)) return false;
     memberIds.add(m.id);
     return true;
   })) return false;

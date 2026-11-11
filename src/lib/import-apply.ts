@@ -1,4 +1,5 @@
 import type { Accent, AppState, ItemKind, Member, StandupEntry, StandupItem, Task } from "@/lib/types";
+import { DEFAULT_DIVISION, memberDivision } from "@/lib/division";
 import { isValidISODate } from "@/lib/date";
 import { normalizeForCompare } from "@/lib/tasks";
 import { contentFingerprint, normalizeMemberName } from "@/lib/import-parser";
@@ -14,7 +15,8 @@ export type ImportItemDecision = {
 export type ImportMemberDecision = {
   sourceName: string;
   memberId: string | null;
-  createMember?: { name: string; role: string };
+  /** Divisi anggota baru hasil impor — kosong berarti divisi bawaan (M2MPD). */
+  createMember?: { name: string; role: string; division?: string };
   activities: ImportItemDecision[];
 };
 
@@ -115,14 +117,19 @@ export function applyImport(
 
     let member: Member | undefined = next.members.find((m) => m.id === memberDecision.memberId);
     if (!member && memberDecision.createMember?.name.trim()) {
+      // Nama cocok dicari dalam divisinya dulu; tanpa divisi berarti divisi bawaan.
+      const targetDivision = memberDecision.createMember.division?.trim() || DEFAULT_DIVISION;
       const wanted = normalizeMemberName(memberDecision.createMember.name);
-      member = next.members.find((m) => normalizeMemberName(m.name) === wanted);
+      member = next.members.find(
+        (m) => memberDivision(m) === targetDivision && normalizeMemberName(m.name) === wanted,
+      );
       if (!member) {
         member = {
           id: makeId("m"),
           name: memberDecision.createMember.name.trim(),
           role: memberDecision.createMember.role.trim() || "Anggota tim",
           accent: ACCENTS[next.members.length % ACCENTS.length],
+          ...(targetDivision !== DEFAULT_DIVISION ? { division: targetDivision } : {}),
         };
         next.members.push(member);
         summary.membersCreated += 1;

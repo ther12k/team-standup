@@ -18,6 +18,8 @@ import {
   useToast,
 } from "@/components/ui";
 import { AssigneePicker } from "@/components/tasks/task-form";
+import { useDivisionScope } from "@/components/user-context";
+import { scopedState } from "@/lib/division";
 import { TASK_STATUSES, type ItemKind, type TaskStatus } from "@/lib/types";
 import { formatDateTime, formatLongDate, formatMediumDate, formatShortDate } from "@/lib/date";
 import { isTaskOverdue, statusMeta, taskStandupUpdates } from "@/lib/tasks";
@@ -36,6 +38,7 @@ export function TaskDetailModal({
   onClose: () => void;
 }) {
   const { state, today, updateTask, changeTaskStatus } = useStore();
+  const { division } = useDivisionScope();
   const { notify } = useToast();
   const task = state.tasks.find((candidate) => candidate.id === taskId);
   const [editing, setEditing] = useState(false);
@@ -64,7 +67,9 @@ export function TaskDetailModal({
   if (!task) return null;
 
   const updates = taskStandupUpdates(state, task.id);
-  const assignees = state.members.filter((member) => task.assigneeIds.includes(member.id));
+  // Pemilik tugas dan pilihan PIC mengikuti divisi yang dilihat.
+  const scopedMembers = scopedState(state, division).members;
+  const assignees = scopedMembers.filter((member) => task.assigneeIds.includes(member.id));
   const overdue = isTaskOverdue(task, today);
   const history = [...task.statusHistory].sort((a, b) => (a.at < b.at ? 1 : -1));
 
@@ -147,7 +152,7 @@ export function TaskDetailModal({
             <div>
               <p className="mb-1 text-[12px] font-semibold text-ink">Penanggung jawab</p>
               <AssigneePicker
-                members={state.members}
+                members={scopedMembers}
                 selected={draft.assigneeIds}
                 onToggle={(id) =>
                   setDraft((current) => ({
